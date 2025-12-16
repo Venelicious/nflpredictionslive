@@ -406,11 +406,12 @@ function migratePredictions(user, season = predictionSeason) {
     predictionsBySeason[season] = defaultPredictions();
   }
 
-auth.updateProfile(user.email, {
-    name: user.name,
-    favorite_team: user.favorite_team,
-    predictionsBySeason
-});
+  if (auth.profiles[user.email]) {
+    auth.profiles[user.email] = {
+      ...auth.profiles[user.email],
+      predictionsBySeason,
+    };
+  }
   return predictionsBySeason[season];
 }
 
