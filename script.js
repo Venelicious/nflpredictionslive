@@ -1128,19 +1128,41 @@ function renderMembersTable(users = [], season = predictionSeason) {
     const row = document.createElement('tr');
 
     const nameCell = document.createElement('td');
+    const nameWrapper = document.createElement('div');
+    nameWrapper.className = 'members-user';
+
+    const avatar = document.createElement('span');
+    avatar.className = 'members-avatar';
+    avatar.textContent = (user.name || user.email || '?').charAt(0).toUpperCase();
+
+    const meta = document.createElement('div');
+    meta.className = 'members-meta';
+
     const nameStrong = document.createElement('strong');
     nameStrong.textContent = user.name || user.email || 'Unbekannt';
     const emailSmall = document.createElement('div');
     emailSmall.className = 'hint';
     emailSmall.textContent = user.email || '';
-    nameCell.appendChild(nameStrong);
-    if (user.email) nameCell.appendChild(emailSmall);
+
+    meta.appendChild(nameStrong);
+    if (user.email) meta.appendChild(emailSmall);
+
+    nameWrapper.appendChild(avatar);
+    nameWrapper.appendChild(meta);
+    nameCell.appendChild(nameWrapper);
 
     const tipsCell = document.createElement('td');
-    tipsCell.textContent = user.has_tip ? '✔' : '✖';
+    const tipsBadge = document.createElement('span');
+    tipsBadge.className = `status-chip ${user.has_tip ? 'status-chip--success' : 'status-chip--pending'}`;
+    tipsBadge.innerHTML = `
+      <span class="status-chip__icon">${user.has_tip ? '✔' : '–'}</span>
+      ${user.has_tip ? 'Abgegeben' : 'Offen'}
+    `;
+    tipsCell.appendChild(tipsBadge);
     tipsCell.setAttribute('aria-label', user.has_tip ? 'Tipps vorhanden' : 'Keine Tipps');
 
     const roleCell = document.createElement('td');
+    roleCell.className = 'members-role-cell';
     const role = (user.role || user.user_group || 'user').toLowerCase();
     if (admin) {
       const select = document.createElement('select');
@@ -1167,7 +1189,10 @@ function renderMembersTable(users = [], season = predictionSeason) {
 
   table.appendChild(tbody);
   elements.membersContent.innerHTML = '';
-  elements.membersContent.appendChild(table);
+  const wrapper = document.createElement('div');
+  wrapper.className = 'members-table-wrapper';
+  wrapper.appendChild(table);
+  elements.membersContent.appendChild(wrapper);
 }
 
 async function loadMembers() {
@@ -1871,7 +1896,11 @@ function buildOverviewScoreboard(participants, options = {}) {
 
   const columnTemplate = `minmax(190px, 1.1fr) repeat(${participants.length}, minmax(150px, 1fr))`;
 
+  const columnGap = 10;
+  const minWidth = 190 + participants.length * 150 + participants.length * columnGap;
+
   wrapper.style.setProperty('--scoreboard-columns', columnTemplate);
+  wrapper.style.setProperty('--scoreboard-min-width', `${minWidth}px`);
 
   wrapper.appendChild(header);
 
