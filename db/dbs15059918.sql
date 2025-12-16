@@ -198,6 +198,84 @@ INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `favorite_t
 --
 -- Indizes für die Tabelle `games`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Tabellenstruktur für Tabelle `seasons`
+--
+
+CREATE TABLE IF NOT EXISTS `seasons` (
+  `season` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
+  `label` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `lock_date` datetime DEFAULT NULL,
+  PRIMARY KEY (`season`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Daten für Tabelle `seasons`
+--
+
+INSERT INTO `seasons` (`season`, `label`, `lock_date`) VALUES
+('2024', 'Saison 2024/2025 (abgeschlossen)', '2024-09-01 12:00:00'),
+('2025', 'Saison 2025/2026', '2025-09-01 12:00:00')
+ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `lock_date` = VALUES(`lock_date`);
+
+-- --------------------------------------------------------
+
+--
+-- Tabellenstruktur für Tabelle `teams`
+--
+
+CREATE TABLE IF NOT EXISTS `teams` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `conference` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
+  `division` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
+  `league` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'NFL',
+  `logo_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_team_name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Daten für Tabelle `teams`
+--
+
+INSERT INTO `teams` (`name`, `conference`, `division`, `league`, `logo_url`) VALUES
+('Arizona Cardinals', 'NFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/ari.png'),
+('Atlanta Falcons', 'NFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/atl.png'),
+('Baltimore Ravens', 'AFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/bal.png'),
+('Buffalo Bills', 'AFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png'),
+('Carolina Panthers', 'NFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/car.png'),
+('Chicago Bears', 'NFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/chi.png'),
+('Cincinnati Bengals', 'AFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/cin.png'),
+('Cleveland Browns', 'AFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/cle.png'),
+('Dallas Cowboys', 'NFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/dal.png'),
+('Denver Broncos', 'AFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/den.png'),
+('Detroit Lions', 'NFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/det.png'),
+('Green Bay Packers', 'NFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/gb.png'),
+('Houston Texans', 'AFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/hou.png'),
+('Indianapolis Colts', 'AFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/ind.png'),
+('Jacksonville Jaguars', 'AFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/jac.png'),
+('Kansas City Chiefs', 'AFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png'),
+('Las Vegas Raiders', 'AFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/lv.png'),
+('Los Angeles Chargers', 'AFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png'),
+('Los Angeles Rams', 'NFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png'),
+('Miami Dolphins', 'AFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/mia.png'),
+('Minnesota Vikings', 'NFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/min.png'),
+('New England Patriots', 'AFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png'),
+('New Orleans Saints', 'NFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/no.png'),
+('New York Giants', 'NFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png'),
+('New York Jets', 'AFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png'),
+('Philadelphia Eagles', 'NFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png'),
+('Pittsburgh Steelers', 'AFC', 'North', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/pit.png'),
+('San Francisco 49ers', 'NFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png'),
+('Seattle Seahawks', 'NFC', 'West', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/sea.png'),
+('Tampa Bay Buccaneers', 'NFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/tb.png'),
+('Tennessee Titans', 'AFC', 'South', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/ten.png'),
+('Washington Commanders', 'NFC', 'East', 'NFL', 'https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png')
+ON DUPLICATE KEY UPDATE conference = VALUES(conference), division = VALUES(division), league = VALUES(league), logo_url = VALUES(logo_url);
 ALTER TABLE `games`
   ADD PRIMARY KEY (`id`);
 

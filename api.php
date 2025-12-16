@@ -101,9 +101,87 @@ function requireAdmin($conn)
     return $user;
 }
 
+function loadSeasons($conn)
+{
+    $result = $conn->query("SELECT season, label, lock_date FROM seasons ORDER BY season ASC");
+    if (!$result) {
+        respond(["error" => "Seasons konnten nicht geladen werden."], 500);
+    }
+
+    $seasons = [];
+    while ($row = $result->fetch_assoc()) {
+        $lockDate = $row["lock_date"];
+        $isoLockDate = null;
+        if ($lockDate) {
+            try {
+                $dt = new DateTime($lockDate);
+                $isoLockDate = $dt->format(DateTime::ATOM);
+            } catch (Exception $e) {
+                $isoLockDate = $lockDate;
+            }
+        }
+
+        $seasons[] = [
+            "season" => $row["season"],
+            "label" => $row["label"],
+            "lock_date" => $isoLockDate,
+        ];
+    }
+
+    return $seasons;
+}
+
+function loadTeams($conn)
+{
+    $result = $conn->query("SELECT id, name, conference, division, league, logo_url FROM teams ORDER BY conference, division, name ASC");
+    if (!$result) {
+        respond(["error" => "Teams konnten nicht geladen werden."], 500);
+    }
+
+    $teams = [];
+    while ($row = $result->fetch_assoc()) {
+        $teams[] = $row;
+    }
+
+    return $teams;
+}
+
 // ----------------------------------------
 // AUTH: /auth/register
 // ----------------------------------------
+if ($path === "/metadata" && $_SERVER["REQUEST_METHOD"] === "GET") {
+    $seasons = loadSeasons($conn);
+    $teams = loadTeams($conn);
+    respond(["seasons" => $seasons, "teams" => $teams]);
+}
+
+if (preg_match('/^\/metadata\/seasons\/([^\/]+)\/lock-date$/', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
+    requireAdmin($conn);
+
+    $season = $matches[1];
+    $lockDate = $input["lock_date"] ?? null;
+    if (!$lockDate) {
+        respond(["error" => "lock_date ist erforderlich."], 400);
+    }
+
+    try {
+        $dt = new DateTime($lockDate);
+        $lockDate = $dt->format('Y-m-d H:i:s');
+    } catch (Exception $e) {
+        respond(["error" => "Ungültiges Datumsformat."], 400);
+    }
+
+    $stmt = $conn->prepare("UPDATE seasons SET lock_date = ? WHERE season = ?");
+    $stmt->bind_param("ss", $lockDate, $season);
+    $stmt->execute();
+
+    if ($stmt->affected_rows === 0) {
+        respond(["error" => "Saison wurde nicht gefunden."], 404);
+    }
+
+    respond(["success" => true, "lock_date" => $dt->format(DateTime::ATOM)]);
+}
+
 if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     global $conn, $input;

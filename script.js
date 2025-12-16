@@ -1,20 +1,19 @@
-const DEFAULT_LOCK_DATES = {
+let DEFAULT_LOCK_DATES = {
   '2024': '2024-09-01T12:00:00Z',
   '2025': '2025-09-01T12:00:00Z',
 };
 const CONFERENCE_ORDER = ['AFC', 'NFC'];
 const DIVISION_ORDER = ['East', 'North', 'South', 'West'];
 const STAT_DIVISION_ORDER = ['North', 'East', 'South', 'West'];
-const AVAILABLE_SEASONS = [
+let AVAILABLE_SEASONS = [
   { value: '2024', label: 'Saison 2024/2025 (abgeschlossen)' },
   { value: '2025', label: 'Saison 2025/2026' },
 ];
 const PREDICTION_SEASON_KEY = 'nflp_prediction_season';
-const LOCK_DATE_STORAGE_KEY = 'nflp_lock_dates';
 const CO_PLAYER_STORAGE_KEY = 'nflp_co_players';
 const ACTIVE_PREDICTOR_KEY = 'nflp_active_predictor';
 let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || AVAILABLE_SEASONS[0].value;
-const teamLogos = {
+let teamLogos = {
   'Buffalo Bills': 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png',
   'Miami Dolphins': 'https://a.espncdn.com/i/teamlogos/nfl/500/mia.png',
   'New England Patriots': 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
@@ -49,7 +48,7 @@ const teamLogos = {
   'Seattle Seahawks': 'https://a.espncdn.com/i/teamlogos/nfl/500/sea.png',
 };
 
-const teams = [
+let teams = [
   { name: 'Buffalo Bills', conference: 'AFC', division: 'East', league: 'NFL' },
   { name: 'Miami Dolphins', conference: 'AFC', division: 'East', league: 'NFL' },
   { name: 'New England Patriots', conference: 'AFC', division: 'East', league: 'NFL' },
@@ -84,6 +83,13 @@ const teams = [
   { name: 'Seattle Seahawks', conference: 'NFC', division: 'West', league: 'NFL' },
 ];
 
+function buildTeamNameLookup(list) {
+  return list.reduce((acc, team) => {
+    acc[normalizeTeamKey(team.name)] = team.name;
+    return acc;
+  }, {});
+}
+
 function splitTeamName(teamName) {
   const parts = teamName.split(' ');
   if (parts.length === 1) return { city: teamName, alias: '' };
@@ -99,10 +105,59 @@ function normalizeTeamKey(label = '') {
     .trim();
 }
 
-const teamNameLookup = teams.reduce((acc, team) => {
-  acc[normalizeTeamKey(team.name)] = team.name;
-  return acc;
-}, {});
+let teamNameLookup = buildTeamNameLookup(teams);
+
+function ensureValidSeasonSelection() {
+  const availableValues = AVAILABLE_SEASONS.map(season => season.value);
+  if (!availableValues.includes(predictionSeason) && availableValues.length) {
+    predictionSeason = availableValues[0];
+    localStorage.setItem(PREDICTION_SEASON_KEY, predictionSeason);
+  }
+}
+
+function applyMetadata({ seasons = [], teams: teamList = [] } = {}) {
+  if (Array.isArray(seasons) && seasons.length) {
+    AVAILABLE_SEASONS = seasons.map(item => ({
+      value: item.season,
+      label: item.label || `Saison ${item.season}`,
+    }));
+
+    DEFAULT_LOCK_DATES = seasons.reduce((acc, season) => {
+      if (season.lock_date) {
+        acc[season.season] = season.lock_date;
+      }
+      return acc;
+    }, { ...DEFAULT_LOCK_DATES });
+  }
+
+  if (Array.isArray(teamList) && teamList.length) {
+    teams = teamList.map(team => ({
+      name: team.name,
+      conference: team.conference,
+      division: team.division,
+      league: team.league || 'NFL',
+      logo: team.logo_url,
+    }));
+
+    teamLogos = teams.reduce((acc, team) => {
+      if (team.logo) acc[team.name] = team.logo;
+      return acc;
+    }, {});
+  }
+
+  teamNameLookup = buildTeamNameLookup(teams);
+  ensureValidSeasonSelection();
+}
+
+async function loadMetadata() {
+  try {
+    const data = await apiClient.metadata();
+    applyMetadata(data);
+  } catch (err) {
+    console.warn('Metadaten konnten nicht geladen werden, benutze Defaults.', err);
+    applyMetadata();
+  }
+}
 
 const API_BASE_URL = '/api.php';
 const API_ENABLED = true;
@@ -151,6 +206,15 @@ const apiClient = {
   },
   updateProfile(payload) {
     return this.request('/auth/profile', { method: 'PUT', body: JSON.stringify(payload) });
+  },
+  metadata() {
+    return this.request('/metadata');
+  },
+  updateLockDate(season, lockDate) {
+    return this.request(`/metadata/seasons/${encodeURIComponent(season)}/lock-date`, {
+      method: 'PUT',
+      body: JSON.stringify({ lock_date: lockDate }),
+    });
   },
   listTips() {
     return this.request('/tips');
@@ -343,18 +407,18 @@ function clamp(value, min, max) {
 }
 
 function getLockDates() {
-  const stored = JSON.parse(localStorage.getItem(LOCK_DATE_STORAGE_KEY) || '{}');
-  return { ...DEFAULT_LOCK_DATES, ...stored };
+  return { ...DEFAULT_LOCK_DATES };
 }
 
 function saveLockDates(lockDates) {
-  localStorage.setItem(LOCK_DATE_STORAGE_KEY, JSON.stringify(lockDates));
+  DEFAULT_LOCK_DATES = { ...lockDates };
 }
 
 function getLockDateForSeason(season = predictionSeason) {
   const lockDates = getLockDates();
-  const value = lockDates[season] || DEFAULT_LOCK_DATES[season] || DEFAULT_LOCK_DATES[AVAILABLE_SEASONS[0].value];
-  return new Date(value);
+  const fallbackSeason = AVAILABLE_SEASONS[0]?.value;
+  const value = lockDates[season] || (fallbackSeason ? lockDates[fallbackSeason] : null);
+  return new Date(value || Date.now());
 }
 
 function formatLockDateForInput(date) {
@@ -600,6 +664,8 @@ function renderTeamLabel(name) {
 }
 
 function populateTeamSelect() {
+  if (!elements.profileFavorite) return;
+  elements.profileFavorite.innerHTML = '';
   teams.forEach(team => {
     const option = document.createElement('option');
     option.value = team.name;
@@ -1239,7 +1305,7 @@ function updateLockDateForm() {
   if (elements.lockDateStatus) elements.lockDateStatus.textContent = '';
 }
 
-function handleLockDateSave() {
+async function handleLockDateSave() {
   if (!elements.lockSeasonSelect || !elements.lockDateInput) return;
   const user = auth.getUser(auth.currentUser);
   if (!isAdmin(user)) {
@@ -1256,11 +1322,19 @@ function handleLockDateSave() {
   }
 
   const iso = new Date(rawValue).toISOString();
-  const lockDates = getLockDates();
-  lockDates[season] = iso;
-  saveLockDates(lockDates);
-  elements.lockDateStatus.textContent = 'Stichtag gespeichert.';
-  elements.lockDateStatus.className = 'status success';
+
+  try {
+    await apiClient.updateLockDate(season, iso);
+    const lockDates = getLockDates();
+    lockDates[season] = iso;
+    saveLockDates(lockDates);
+    elements.lockDateStatus.textContent = 'Stichtag gespeichert.';
+    elements.lockDateStatus.className = 'status success';
+  } catch (err) {
+    elements.lockDateStatus.textContent = err.message || 'Stichtag konnte nicht gespeichert werden.';
+    elements.lockDateStatus.className = 'status error';
+    return;
+  }
 
   if (season === predictionSeason) {
     updateLockInfo();
@@ -2122,6 +2196,7 @@ function setupEvents() {
 }
 
 async function init() {
+  await loadMetadata();
   populateTeamSelect();
   populateSeasonPicker();
   populateLockSeasonSelect();
