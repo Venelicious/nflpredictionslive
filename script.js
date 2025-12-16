@@ -158,6 +158,16 @@ const apiClient = {
   saveTip(payload) {
     return this.request('/tips', { method: 'POST', body: JSON.stringify(payload) });
   },
+  listUsers(season) {
+    const query = season ? `?season=${encodeURIComponent(season)}` : '';
+    return this.request(`/users${query}`);
+  },
+  updateUserRole(userId, role) {
+    return this.request(`/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  },
 };
 
 const auth = {
@@ -293,7 +303,7 @@ const elements = {
   logoutBtn: document.getElementById('logoutBtn'),
   tabs: document.getElementById('tabs'),
   welcomeHero: document.getElementById('welcomeHero'),
-  tabButtons: document.querySelectorAll('.tab-button'),
+  tabButtons: document.querySelectorAll('.tab-link'),
   tabPanes: document.querySelectorAll('.tab-pane'),
   profileForm: document.getElementById('profileForm'),
   profileName: document.getElementById('profileName'),
@@ -324,6 +334,8 @@ const elements = {
   lockDateInput: document.getElementById('lockDateInput'),
   lockDateStatus: document.getElementById('lockDateStatus'),
   saveLockDate: document.getElementById('saveLockDate'),
+  membersContent: document.getElementById('membersContent'),
+  membersStatus: document.getElementById('membersStatus'),
 };
 
 function clamp(value, min, max) {
@@ -708,6 +720,7 @@ function updateAuthUI() {
     setActivePredictor({ type: 'user', id: current });
     refreshCoPlayerSelect();
     loadPredictionsForActive();
+    loadMembers();
   } else {
     showAuth('login');
     applyLockDatePermission(null);
@@ -721,6 +734,9 @@ function switchTab(targetId) {
   if (targetButton?.disabled) return;
   elements.tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === targetId));
   elements.tabPanes.forEach(pane => pane.classList.toggle('active', pane.id === targetId));
+  if (targetId === 'membersTab') {
+    loadMembers();
+  }
 }
 
 function getActivePredictionOwner() {
@@ -1068,6 +1084,105 @@ function isAdmin(user) {
   return (user?.role || '').toLowerCase() === 'admin';
 }
 
+function renderRoleBadge(role) {
+  const span = document.createElement('span');
+  span.className = 'role-badge';
+  span.textContent = role === 'admin' ? 'Admin' : 'User';
+  return span;
+}
+
+async function handleRoleChange(userId, roleSelect) {
+  if (!roleSelect) return;
+  const newRole = roleSelect.value;
+  roleSelect.disabled = true;
+  setStatus(elements.membersStatus, 'Rolle wird aktualisiert …', '');
+  try {
+    await apiClient.updateUserRole(userId, newRole);
+    setStatus(elements.membersStatus, 'Rolle gespeichert.', 'success');
+    await loadMembers();
+  } catch (err) {
+    setStatus(elements.membersStatus, err.message || 'Rolle konnte nicht gespeichert werden.', 'error');
+  } finally {
+    roleSelect.disabled = false;
+  }
+}
+
+function renderMembersTable(users = [], season = predictionSeason) {
+  if (!elements.membersContent) return;
+  const admin = isAdmin(auth.getUser(auth.currentUser));
+
+  if (!users.length) {
+    elements.membersContent.innerHTML = '<p class="empty">Keine Mitglieder gefunden.</p>';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'members-table';
+
+  const thead = document.createElement('thead');
+  thead.innerHTML = `<tr><th>Benutzer</th><th>Tipps (${season})</th><th>Rolle</th></tr>`;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  users.forEach(user => {
+    const row = document.createElement('tr');
+
+    const nameCell = document.createElement('td');
+    const nameStrong = document.createElement('strong');
+    nameStrong.textContent = user.name || user.email || 'Unbekannt';
+    const emailSmall = document.createElement('div');
+    emailSmall.className = 'hint';
+    emailSmall.textContent = user.email || '';
+    nameCell.appendChild(nameStrong);
+    if (user.email) nameCell.appendChild(emailSmall);
+
+    const tipsCell = document.createElement('td');
+    tipsCell.textContent = user.has_tip ? '✔' : '✖';
+    tipsCell.setAttribute('aria-label', user.has_tip ? 'Tipps vorhanden' : 'Keine Tipps');
+
+    const roleCell = document.createElement('td');
+    const role = (user.role || user.user_group || 'user').toLowerCase();
+    if (admin) {
+      const select = document.createElement('select');
+      select.className = 'members-role-select';
+      select.innerHTML = `
+        <option value="user">User</option>
+        <option value="admin">Admin</option>
+      `;
+      select.value = role;
+      select.addEventListener('change', () => handleRoleChange(user.id, select));
+      if (user.email === auth.currentUser) {
+        select.disabled = true;
+      }
+      roleCell.appendChild(select);
+    } else {
+      roleCell.appendChild(renderRoleBadge(role));
+    }
+
+    row.appendChild(nameCell);
+    row.appendChild(tipsCell);
+    row.appendChild(roleCell);
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  elements.membersContent.innerHTML = '';
+  elements.membersContent.appendChild(table);
+}
+
+async function loadMembers() {
+  if (!elements.membersContent || !auth.currentUser) return;
+  setStatus(elements.membersStatus, 'Mitglieder werden geladen …', '');
+  try {
+    const { users } = await apiClient.listUsers(predictionSeason);
+    renderMembersTable(users, predictionSeason);
+    setStatus(elements.membersStatus, '', '');
+  } catch (err) {
+    renderMembersTable([]);
+    setStatus(elements.membersStatus, err.message || 'Mitglieder konnten nicht geladen werden.', 'error');
+  }
+}
+
 function applyLockDatePermission(user) {
   const admin = isAdmin(user);
   if (elements.lockSeasonSelect) {
@@ -1141,6 +1256,7 @@ function handleSeasonChange(event) {
   }
   updateLockInfo();
   loadStats(predictionSeason);
+  loadMembers();
 }
 
 function isLocked() {
@@ -1896,7 +2012,8 @@ function updateOverviewAccess() {
   const overviewBtn = Array.from(elements.tabButtons).find(btn => btn.dataset.tab === 'overviewTab');
   if (overviewBtn) {
     overviewBtn.disabled = !locked;
-    overviewBtn.classList.toggle('tab-button--disabled', !locked);
+    overviewBtn.dataset.disabled = (!locked).toString();
+    overviewBtn.classList.toggle('tab-link--disabled', !locked);
     if (!locked && overviewBtn.classList.contains('active')) {
       switchTab('profileTab');
     }
@@ -1954,8 +2071,10 @@ function setupEvents() {
   elements.editCoPlayer?.addEventListener('click', handleEditCoPlayer);
   elements.deleteCoPlayer?.addEventListener('click', handleDeleteCoPlayer);
   elements.tabButtons.forEach(btn =>
-    btn.addEventListener('click', () => {
-      if (btn.disabled) return;
+    btn.addEventListener('click', event => {
+      event.preventDefault();
+      const isDisabled = btn.disabled || btn.classList.contains('tab-link--disabled') || btn.dataset.disabled === 'true';
+      if (isDisabled) return;
       switchTab(btn.dataset.tab);
     })
   );
