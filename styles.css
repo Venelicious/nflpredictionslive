@@ -1017,9 +1017,9 @@ footer {
 
 /* --- SCOREBOARD GLOBAL --- */
 .scoreboard-matrix {
-  --col-gap: 12px;
-  --row-gap: 6px;
-  margin-top: 20px;
+  --col-gap: 10px;
+  --row-gap: 5px;
+  margin-top: 16px;
 }
 
 /* Division Banner */
@@ -1063,7 +1063,7 @@ footer {
   display: grid;
   grid-template-columns: var(--scoreboard-columns);
   gap: var(--col-gap);
-  padding: 6px 4px 12px;
+  padding: 4px 4px 8px;
   align-items: center;
 }
 
@@ -1071,21 +1071,21 @@ footer {
   display: grid;
   grid-template-columns: var(--scoreboard-columns);
   gap: var(--col-gap);
-  padding: 8px 4px;
+  padding: 6px 4px;
   align-items: stretch;
 }
 
 /* ACTUAL STANDINGS CELL */
 .cell-standings {
   background: #f6f7f9;
-  padding: 10px;
+  padding: 8px 9px;
   border-radius: 10px;
 }
 
 /* USER PREDICTION CELL */
 .prediction-compact {
   background: #ffffff;
-  padding: 10px;
+  padding: 8px 9px;
   border-radius: 10px;
   box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
 }
@@ -1094,7 +1094,7 @@ footer {
 .scoreboard__team-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
 }
 
@@ -1110,7 +1110,7 @@ footer {
 
 /* RECORD UND PUNKTE */
 .scoreboard__record {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: #4b5563;
   margin-top: 2px;
 }
