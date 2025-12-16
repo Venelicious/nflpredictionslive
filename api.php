@@ -68,7 +68,7 @@ function respond($data, $code = 200) {
 
 function fetchUserById($id, $conn)
 {
-    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, user_group FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -136,7 +136,7 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
     $hash = password_hash($input["password"], PASSWORD_BCRYPT);
 
     // Nutzer anlegen
-    $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash, user_group) VALUES (?, ?, ?, 'user')");
+    $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'user')");
     $stmt->bind_param("sss", $input["name"], $input["email"], $hash);
     $stmt->execute();
 
@@ -162,7 +162,7 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
         respond(["error" => "E-Mail und Passwort sind erforderlich"], 400);
     }
 
-    $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, user_group FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, role AS user_group FROM users WHERE email = ?");
     $stmt->bind_param("s", $input["email"]);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -196,7 +196,7 @@ if ($path === "/auth/me") {
 
     $id = $_SESSION["user_id"];
 
-    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, user_group FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
 
@@ -296,7 +296,7 @@ if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
         $season = date("Y");
     }
 
-    $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.user_group, 
+    $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.role AS user_group,
       CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip
       FROM users u
       LEFT JOIN tips t ON u.id = t.user_id AND t.season = ?
@@ -334,7 +334,7 @@ if (preg_match('#^/users/(\d+)/role$#', $path, $matches) && $_SERVER["REQUEST_ME
         respond(["error" => "Benutzer nicht gefunden"], 404);
     }
 
-    $stmt = $conn->prepare("UPDATE users SET user_group = ? WHERE id = ?");
+    $stmt = $conn->prepare("UPDATE users SET role = ? WHERE id = ?");
     $stmt->bind_param("si", $newRole, $userId);
     $stmt->execute();
 
