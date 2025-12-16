@@ -1869,7 +1869,7 @@ function buildOverviewScoreboard(participants, options = {}) {
     ${hint ? `<div class="hint">${hint}</div>` : ''}
   `;
 
-  const columnTemplate = `minmax(220px, 1.2fr) repeat(${participants.length}, minmax(180px, 1fr))`;
+  const columnTemplate = `minmax(190px, 1.1fr) repeat(${participants.length}, minmax(150px, 1fr))`;
 
   wrapper.style.setProperty('--scoreboard-columns', columnTemplate);
 
@@ -1930,6 +1930,13 @@ function buildOverviewScoreboard(participants, options = {}) {
       const bonusRow = document.createElement('div');
       bonusRow.className = 'scoreboard__row scoreboard__bonus-row';
 
+      const infoCell = document.createElement('div');
+      infoCell.className = 'scoreboard__cell scoreboard__cell--info';
+      infoCell.innerHTML = `
+        <div class="scoreboard__bonus-label">Bonus</div>
+        <div class="scoreboard__bonus-hint">Perfekte Division = +1</div>
+      `;
+      bonusRow.appendChild(infoCell);
 
       userDivisionPredictions.forEach(({ entries }) => {
         const bonus = calculateDivisionBonus(entries);
