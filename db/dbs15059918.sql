@@ -189,7 +189,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `favorite_team`, `created_at`) VALUES
-(2, 'Venelicious', 'bastian.hamm@live.de', '$2y$12$1h/fad5ysSFKujtawK81IOwAeD9nwNu.m0dAxzSLcHgUm6Hel/PTS', 'user', 'New Orleans Saints', '2025-12-11 00:02:22');
+(2, 'Venelicious', 'bastian.hamm@live.de', '$2y$12$1h/fad5ysSFKujtawK81IOwAeD9nwNu.m0dAxzSLcHgUm6Hel/PTS', 'admin', 'New Orleans Saints', '2025-12-11 00:02:22');
 
 --
 -- Indizes der exportierten Tabellen
