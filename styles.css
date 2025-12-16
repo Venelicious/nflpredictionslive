@@ -200,39 +200,97 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .tab-nav {
   display: flex;
-  gap: 10px;
+  gap: 0;
   background: #fff;
-  padding: 6px;
+  padding: 0;
   border-radius: 14px;
   border: 1px solid var(--gray-200);
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
-.tab-button {
+.tab-link {
   flex: 1;
-  padding: 12px 14px;
-  background: transparent;
-  border: 1px solid transparent;
+  padding: 14px 16px;
+  text-align: center;
   color: var(--navy-2);
-  border-radius: 10px;
-  cursor: pointer;
   font-weight: 800;
   letter-spacing: 0.4px;
   text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #fff, #f7f8fb);
+  border-right: 1px solid var(--gray-200);
+  position: relative;
   transition: all 0.15s ease;
 }
 
-.tab-button.active {
-  background: var(--navy-2);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(19, 32, 56, 0.25);
-  border-color: var(--navy-2);
+.tab-link:last-child {
+  border-right: none;
 }
 
-.tab-button--disabled { opacity: 0.5; cursor: not-allowed; }
+.tab-link.active {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.tab-link.tab-link--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .tab-pane { display: none; }
 .tab-pane.active { display: block; }
+
+.members-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.members-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.members-table thead {
+  background: var(--navy);
+  color: #fff;
+}
+
+.members-table th,
+.members-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--gray-200);
+  text-align: left;
+}
+
+.members-table tbody tr:nth-child(odd) {
+  background: #f7f8fb;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--gray-100);
+  color: var(--navy-2);
+}
+
+.members-role-select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--gray-300);
+  background: #fff;
+  font-weight: 700;
+}
 
 .tab-toolbar {
   display: flex;

@@ -39,12 +39,13 @@
 
   <main>
     <section id="tabs" class="hidden">
-      <nav class="tab-nav">
-        <button class="tab-button active" data-tab="profileTab">Profil</button>
-        <button class="tab-button" data-tab="predictionsTab">Tipps</button>
-        <button class="tab-button" data-tab="statsTab">NFL Stats</button>
-        <button class="tab-button" data-tab="importTab">CSV-Import</button>
-        <button class="tab-button" data-tab="overviewTab">Tipps-Übersicht</button>
+      <nav class="tab-nav" role="tablist">
+        <a class="tab-link active" data-tab="profileTab" role="tab" href="#">Profil</a>
+        <a class="tab-link" data-tab="predictionsTab" role="tab" href="#">Tipps</a>
+        <a class="tab-link" data-tab="statsTab" role="tab" href="#">NFL Stats</a>
+        <a class="tab-link" data-tab="importTab" role="tab" href="#">CSV-Import</a>
+        <a class="tab-link" data-tab="overviewTab" role="tab" href="#">Tipps-Übersicht</a>
+        <a class="tab-link" data-tab="membersTab" role="tab" href="#">Mitglieder</a>
       </nav>
 
       <div class="tab-toolbar">
@@ -154,6 +155,17 @@
             </div>
           </div>
           <div id="overviewContent" class="card"></div>
+        </section>
+
+        <section id="membersTab" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Mitglieder</h2>
+              <p class="hint">Registrierte Benutzer und ihr Status für die ausgewählte Saison.</p>
+            </div>
+            <p class="status" id="membersStatus"></p>
+          </div>
+          <div id="membersContent" class="card members-card"></div>
         </section>
       </div>
     </section>

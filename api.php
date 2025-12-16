@@ -54,7 +54,7 @@ session_start();
 // ----------------------------------------
 // Routing
 // ----------------------------------------
-$path = $_SERVER["REQUEST_URI"];
+$path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH);
 $path = str_replace("/api.php", "", $path);
 
 // ----------------------------------------
@@ -72,6 +72,33 @@ function fetchUserById($id, $conn)
     $stmt->bind_param("i", $id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
+}
+
+function getCurrentUser($conn)
+{
+    if (!isset($_SESSION["user_id"])) {
+        return null;
+    }
+
+    return fetchUserById($_SESSION["user_id"], $conn);
+}
+
+function requireLogin($conn)
+{
+    $user = getCurrentUser($conn);
+    if (!$user) {
+        respond(["error" => "Nicht eingeloggt"], 401);
+    }
+    return $user;
+}
+
+function requireAdmin($conn)
+{
+    $user = requireLogin($conn);
+    if (strtolower($user["user_group"] ?? "") !== "admin") {
+        respond(["error" => "Nur Admins dürfen diese Aktion ausführen."], 403);
+    }
+    return $user;
 }
 
 // ----------------------------------------
@@ -254,6 +281,66 @@ if ($path === "/tips" && $_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->execute();
 
     respond(["success" => true]);
+}
+
+
+// ----------------------------------------
+// USERS: /users (GET)
+// ----------------------------------------
+if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
+
+    requireLogin($conn);
+
+    $season = $_GET['season'] ?? '';
+    if (!$season) {
+        $season = date("Y");
+    }
+
+    $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.user_group, 
+      CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip
+      FROM users u
+      LEFT JOIN tips t ON u.id = t.user_id AND t.season = ?
+      GROUP BY u.id, u.name, u.email, u.favorite_team, u.user_group
+      ORDER BY u.name ASC");
+    $stmt->bind_param("s", $season);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $users = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['has_tip'] = (bool)$row['has_tip'];
+        $users[] = $row;
+    }
+
+    respond(["users" => $users, "season" => $season]);
+}
+
+
+// ----------------------------------------
+// USERS: /users/{id}/role (PUT)
+// ----------------------------------------
+if (preg_match('#^/users/(\d+)/role$#', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
+
+    $admin = requireAdmin($conn);
+    $userId = intval($matches[1]);
+    $newRole = strtolower(trim($input['role'] ?? ''));
+
+    if (!in_array($newRole, ['admin', 'user'])) {
+        respond(["error" => "Ungültige Rolle"], 422);
+    }
+
+    $targetUser = fetchUserById($userId, $conn);
+    if (!$targetUser) {
+        respond(["error" => "Benutzer nicht gefunden"], 404);
+    }
+
+    $stmt = $conn->prepare("UPDATE users SET user_group = ? WHERE id = ?");
+    $stmt->bind_param("si", $newRole, $userId);
+    $stmt->execute();
+
+    $updated = fetchUserById($userId, $conn);
+
+    respond(["success" => true, "user" => $updated]);
 }
 
 
