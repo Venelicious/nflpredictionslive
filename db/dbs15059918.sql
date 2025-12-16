@@ -178,6 +178,7 @@ CREATE TABLE `users` (
   `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
   `password_hash` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `role` varchar(50) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'user',
   `favorite_team` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -187,8 +188,8 @@ CREATE TABLE `users` (
 -- Daten für Tabelle `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `favorite_team`, `created_at`) VALUES
-(2, 'Venelicious', 'bastian.hamm@live.de', '$2y$12$1h/fad5ysSFKujtawK81IOwAeD9nwNu.m0dAxzSLcHgUm6Hel/PTS', 'New Orleans Saints', '2025-12-11 00:02:22');
+INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `favorite_team`, `created_at`) VALUES
+(2, 'Venelicious', 'bastian.hamm@live.de', '$2y$12$1h/fad5ysSFKujtawK81IOwAeD9nwNu.m0dAxzSLcHgUm6Hel/PTS', 'user', 'New Orleans Saints', '2025-12-11 00:02:22');
 
 --
 -- Indizes der exportierten Tabellen
