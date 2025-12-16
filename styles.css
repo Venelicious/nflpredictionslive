@@ -691,7 +691,16 @@ button { font-family: inherit; }
   gap: 6px;
 }
 
-.scoreboard__cell--header { background: rgba(12, 32, 72, 0.08); text-align: center; border-color: rgba(12, 32, 72, 0.35); }
+.scoreboard__cell--header {
+  background: rgba(12, 32, 72, 0.08);
+  border-color: rgba(12, 32, 72, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  text-align: center;
+}
 
 .scoreboard__player-name { font-weight: 800; white-space: nowrap; }
 
