@@ -694,12 +694,16 @@ button { font-family: inherit; }
 .scoreboard__cell--header {
   background: rgba(12, 32, 72, 0.08);
   border-color: rgba(12, 32, 72, 0.35);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  flex-direction: column;
   flex-wrap: wrap;
   text-align: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
 }
 
 .scoreboard__player-name { font-weight: 800; white-space: nowrap; }
@@ -1039,7 +1043,9 @@ footer {
   border-radius: 8px;
   margin: 18px 0 12px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -1073,7 +1079,7 @@ footer {
   grid-template-columns: var(--scoreboard-columns);
   gap: var(--col-gap);
   padding: 4px 4px 8px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .scoreboard__row--matrix {
