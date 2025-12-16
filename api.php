@@ -300,7 +300,7 @@ if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
       CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip
       FROM users u
       LEFT JOIN tips t ON u.id = t.user_id AND t.season = ?
-      GROUP BY u.id, u.name, u.email, u.favorite_team, u.user_group
+      GROUP BY u.id, u.name, u.email, u.favorite_team, u.role
       ORDER BY u.name ASC");
     $stmt->bind_param("s", $season);
     $stmt->execute();
