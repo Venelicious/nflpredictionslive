@@ -472,6 +472,36 @@ button { font-family: inherit; }
 
 .table-scroll { overflow-x: auto; }
 
+/* Einheitlicher NFL-Stats Stil für alle Inhalte */
+.tab-pane h2,
+.tab-pane h3,
+.pane-header h2,
+.overview-scoreboard__title {
+  font-family: 'Barlow Condensed', 'Inter', sans-serif;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.tab-pane .card,
+.tab-toolbar,
+.overview-scoreboard,
+#predictionsContent,
+#statsContent,
+#overviewContent,
+#membersContent,
+.scoreboard {
+  background: linear-gradient(135deg, #ffffff, #f3f5fa);
+  border: 1px solid var(--gray-200);
+  box-shadow: var(--shadow);
+}
+
+.tab-pane .card,
+.tab-toolbar,
+.overview-scoreboard,
+.scoreboard {
+  border-radius: var(--radius);
+}
+
 .pred-table {
   width: 100%;
   border-collapse: collapse;
@@ -1140,6 +1170,7 @@ footer {
 .scoreboard-grid--matrix {
   display: grid;
   gap: var(--row-gap);
+  grid-template-columns: 1fr;
   min-width: var(--scoreboard-min-width, 680px);
 }
 
