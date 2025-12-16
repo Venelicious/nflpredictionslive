@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFL Predictions</title>
+  <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <div class="logo">NFL Predictions</div>
+    <div class="auth-area" id="authArea">
+      <form id="loginForm" class="auth-form hidden">
+        <input type="email" id="loginEmail" placeholder="E-Mail" required>
+        <input type="password" id="loginPassword" placeholder="Passwort" required>
+        <button type="submit">Anmelden</button>
+        <p class="status" id="loginStatus"></p>
+        <p class="helper">Noch kein Account? <button type="button" class="linkish" id="showRegister">Registrieren</button></p>
+      </form>
+      <form id="registerForm" class="auth-form hidden">
+        <input type="text" id="registerName" placeholder="Anzeigename" required>
+        <input type="email" id="registerEmail" placeholder="E-Mail" required>
+        <input type="password" id="registerPassword" placeholder="Passwort" required>
+        <button type="submit">Registrieren</button>
+        <p class="status" id="registerStatus"></p>
+        <p class="helper">Bereits registriert? <button type="button" class="linkish" id="showLogin">Anmelden</button></p>
+      </form>
+      <div id="welcomeArea" class="welcome hidden">
+        <div>
+          <p class="welcome__name">Eingeloggt als <span id="welcomeName"></span></p>
+          <p class="welcome__email" id="welcomeEmail"></p>
+        </div>
+        <button id="logoutBtn" class="secondary">Abmelden</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="tabs" class="hidden">
+      <nav class="tab-nav">
+        <button class="tab-button active" data-tab="profileTab">Profil</button>
+        <button class="tab-button" data-tab="predictionsTab">Tipps</button>
+        <button class="tab-button" data-tab="statsTab">NFL Stats</button>
+        <button class="tab-button" data-tab="importTab">CSV-Import</button>
+        <button class="tab-button" data-tab="overviewTab">Tipps-Übersicht</button>
+      </nav>
+
+      <div class="tab-toolbar">
+        <label class="season-picker">
+          Saison:
+          <select id="seasonPicker"></select>
+        </label>
+      </div>
+
+      <div class="tab-content">
+        <section id="profileTab" class="tab-pane active">
+          <h2>Profil &amp; Einstellungen</h2>
+          <div class="settings-grid">
+            <form id="profileForm" class="card">
+              <h3>Profil</h3>
+              <div class="form-row">
+                <label for="profileName">Anzeigename</label>
+                <input type="text" id="profileName" required>
+              </div>
+              <div class="form-row">
+                <label for="profileEmail">E-Mail</label>
+                <input type="email" id="profileEmail" disabled>
+                <p class="hint">Die E-Mail dient als Benutzerkennung und kann nicht geändert werden.</p>
+              </div>
+              <div class="form-row">
+                <label for="profileFavorite">Lieblingsteam</label>
+                <select id="profileFavorite">
+                  <option value="">-- wähle ein Team --</option>
+                </select>
+              </div>
+              <button type="submit">Profil speichern</button>
+              <p class="status" id="profileStatus"></p>
+            </form>
+
+            <div class="card">
+              <h3>Saison-Stichtage</h3>
+              <div class="form-grid">
+                <label class="form-field">
+                  Saison
+                  <select id="lockSeasonSelect"></select>
+                </label>
+                <label class="form-field">
+                  Stichtag (Datum &amp; Uhrzeit)
+                  <input type="datetime-local" id="lockDateInput">
+                </label>
+              </div>
+              <button id="saveLockDate" type="button">Stichtag speichern</button>
+              <p class="status" id="lockDateStatus"></p>
+            </div>
+
+          </div>
+        </section>
+
+        <section id="predictionsTab" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Tipps für jede Division (17 Spieltage)</h2>
+            </div>
+            <div class="pane-actions">
+              <div class="lock-info" id="lockInfo"></div>
+            </div>
+          </div>
+          <div id="predictionsContent" class="card">Bereit für deine Tipps.</div>
+          <div class="actions">
+            <button id="savePredictions" disabled>Tipps speichern</button>
+            <p class="status" id="predictionStatus"></p>
+          </div>
+        </section>
+
+        <section id="statsTab" class="tab-pane">
+          <div class="pane-header">
+            <h2>Aktuelle NFL Statistiken</h2>
+            <div class="pane-actions">
+              <button id="refreshStats" class="secondary">Neu laden</button>
+            </div>
+          </div>
+          <div id="statsContent" class="card">Starte eine Aktualisierung…</div>
+        </section>
+
+        <section id="importTab" class="tab-pane">
+          <div class="pane-header">
+            <h2>Ranking-Tabelle importieren</h2>
+          </div>
+          <div class="card import-card">
+            <p class="hint">
+              Kopiere die Tabelle (CSV oder aus Excel heraus) und füge sie hier ein. Erste Spalte: Teamname.
+              Ab der zweiten Spalte die Werte für jeden Mitspieler im Format <strong>Platz (Siege-Niederlagen)</strong>,
+              z. B. <code>2 (13-4)</code>.
+            </p>
+            <textarea id="tableImport" rows="6" placeholder="Team;Raul;Birk;...&#10;Buffalo Bills;2 (13-4);2 (13-4);..."></textarea>
+            <div class="import-actions">
+              <button id="importTableBtn" type="button" class="secondary">Tabelle übernehmen</button>
+              <p id="importStatus" class="status"></p>
+            </div>
+          </div>
+        </section>
+
+        <section id="overviewTab" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Vorhersagen aller Benutzer</h2>
+              <p id="overviewStatus" class="hint"></p>
+            </div>
+            <div class="pane-actions">
+              <button id="exportCsv" class="secondary">CSV exportieren</button>
+              <button id="exportPdf" class="secondary">Scoreboard als PDF</button>
+            </div>
+          </div>
+          <div id="overviewContent" class="card"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="welcomeHero" class="hero">
+      <div class="hero__content">
+        <h1>Erstelle deine NFL-Vorhersagen</h1>
+        <p>Registriere dich, tippe die finale Tabelle nach 17 Spieltagen und vergleiche deine Prognosen.</p>
+        <button id="startNow" class="cta">Jetzt starten</button>
+      </div>
+      <div class="hero__img" aria-hidden="true">🏈</div>
+    </section>
+  </main>
+
+  <footer>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
