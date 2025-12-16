@@ -41,6 +41,25 @@ if ($conn->connect_error) {
     exit;
 }
 
+function ensureUsersTable($conn)
+{
+    $conn->query("CREATE TABLE IF NOT EXISTS `users` (
+        `id` int NOT NULL AUTO_INCREMENT,
+        `name` varchar(255) NOT NULL,
+        `email` varchar(255) NOT NULL,
+        `password_hash` varchar(255) NOT NULL,
+        `role` varchar(50) NOT NULL DEFAULT 'user',
+        `favorite_team` varchar(255) DEFAULT NULL,
+        `avatar_url` varchar(500) DEFAULT NULL,
+        `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `email_unique` (`email`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
+}
+
+ensureUsersTable($conn);
+
 function ensureColumnExists($conn, $table, $column, $definition)
 {
     $stmt = $conn->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
@@ -92,6 +111,14 @@ function respond($data, $code = 200) {
     http_response_code($code);
     echo json_encode($data);
     exit;
+}
+
+function requireStatement($stmt, $context)
+{
+    global $conn;
+    if (!$stmt) {
+        respond(["error" => $context . ': ' . $conn->error], 500);
+    }
 }
 
 function fetchUserById($id, $conn)
@@ -319,6 +346,7 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Prüfen ob Nutzer existiert
     $stmt = $conn->prepare("SELECT id, email, name FROM users WHERE email = ? OR name = ?");
+    requireStatement($stmt, 'Nutzerprüfung fehlgeschlagen');
     $stmt->bind_param("ss", $email, $name);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -338,8 +366,11 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Nutzer anlegen
     $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'user')");
+    requireStatement($stmt, 'Registrierung fehlgeschlagen');
     $stmt->bind_param("sss", $name, $email, $hash);
-    $stmt->execute();
+    if (!$stmt->execute()) {
+        respond(["error" => "Registrierung fehlgeschlagen: " . $stmt->error], 500);
+    }
 
     session_regenerate_id(true);
     $_SESSION["user_id"] = $stmt->insert_id;
@@ -368,6 +399,7 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, role AS user_group, avatar_url FROM users WHERE email = ?");
+    requireStatement($stmt, 'Login fehlgeschlagen');
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $res = $stmt->get_result();
