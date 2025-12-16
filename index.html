@@ -43,7 +43,6 @@
         <a class="tab-link active" data-tab="profileTab" role="tab" href="#">Profil</a>
         <a class="tab-link" data-tab="predictionsTab" role="tab" href="#">Tipps</a>
         <a class="tab-link" data-tab="statsTab" role="tab" href="#">NFL Stats</a>
-        <a class="tab-link" data-tab="importTab" role="tab" href="#">CSV-Import</a>
         <a class="tab-link" data-tab="overviewTab" role="tab" href="#">Tipps-Übersicht</a>
         <a class="tab-link" data-tab="membersTab" role="tab" href="#">Mitglieder</a>
       </nav>
@@ -123,24 +122,6 @@
             </div>
           </div>
           <div id="statsContent" class="card">Starte eine Aktualisierung…</div>
-        </section>
-
-        <section id="importTab" class="tab-pane">
-          <div class="pane-header">
-            <h2>Ranking-Tabelle importieren</h2>
-          </div>
-          <div class="card import-card">
-            <p class="hint">
-              Kopiere die Tabelle (CSV oder aus Excel heraus) und füge sie hier ein. Erste Spalte: Teamname.
-              Ab der zweiten Spalte die Werte für jeden Mitspieler im Format <strong>Platz (Siege-Niederlagen)</strong>,
-              z. B. <code>2 (13-4)</code>.
-            </p>
-            <textarea id="tableImport" rows="6" placeholder="Team;Raul;Birk;...&#10;Buffalo Bills;2 (13-4);2 (13-4);..."></textarea>
-            <div class="import-actions">
-              <button id="importTableBtn" type="button" class="secondary">Tabelle übernehmen</button>
-              <p id="importStatus" class="status"></p>
-            </div>
-          </div>
         </section>
 
         <section id="overviewTab" class="tab-pane">

@@ -391,9 +391,6 @@ const elements = {
   overviewStatus: document.getElementById('overviewStatus'),
   exportCsv: document.getElementById('exportCsv'),
   exportPdf: document.getElementById('exportPdf'),
-  tableImport: document.getElementById('tableImport'),
-  importStatus: document.getElementById('importStatus'),
-  importTableBtn: document.getElementById('importTableBtn'),
   lockSeasonSelect: document.getElementById('lockSeasonSelect'),
   lockDateInput: document.getElementById('lockDateInput'),
   lockDateStatus: document.getElementById('lockDateStatus'),
@@ -524,108 +521,9 @@ function normalizePrediction(prediction = {}) {
   };
 }
 
-function detectDelimiter(line) {
-  if (line.includes(';')) return ';';
-  if (line.includes('\t')) return '\t';
-  return ',';
-}
-
-function parsePredictionCell(cell) {
-  const normalized = cell || '';
-  const match = normalized.match(/(\d+)\D+(\d+)\s*-\s*(\d+)/);
-  if (!match) return null;
-  return normalizePrediction({
-    divisionRank: Number(match[1]),
-    wins: Number(match[2]),
-    losses: Number(match[3]),
-  });
-}
-
 function findTeamByLabel(label = '') {
   const key = normalizeTeamKey(label);
   return teamNameLookup[key] || null;
-}
-
-function parseTableInput(text) {
-  const lines = text
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(Boolean);
-
-  if (lines.length < 2) {
-    throw new Error('Mindestens Kopfzeile und eine Datenzeile einfügen.');
-  }
-
-  const delimiter = detectDelimiter(lines[0]);
-  const header = lines[0].split(delimiter).map(cell => cell.trim());
-
-  if (header.length < 2) {
-    throw new Error('Die Kopfzeile benötigt mindestens einen Spielernamen.');
-  }
-
-  const playerNames = header
-    .slice(1)
-    .map(name => (name || '').trim() || 'Mitspieler');
-  const rows = lines.slice(1).map(line => line.split(delimiter).map(cell => cell.trim()));
-
-  return { playerNames, rows };
-}
-
-function importTableData(raw) {
-  const { playerNames, rows } = parseTableInput(raw);
-  const existing = readCoPlayers();
-  const playerMap = new Map();
-
-  playerNames.forEach(name => {
-    const normalizedName = name.trim();
-    const playerKey = normalizedName.toLowerCase();
-    const current = existing.find(p => (p.name || '').toLowerCase() === playerKey);
-    const predictionsBySeason = {
-      ...(current?.predictionsBySeason || {}),
-      [predictionSeason]: defaultPredictions(),
-    };
-
-    playerMap.set(playerKey, {
-      id:
-        current?.id ||
-        (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `co-${Date.now()}-${Math.random()}`),
-      name: normalizedName,
-      predictionsBySeason,
-    });
-  });
-
-  const skippedTeams = [];
-
-  rows.forEach(cells => {
-    const [teamCell, ...values] = cells;
-    const teamName = findTeamByLabel(teamCell);
-    if (!teamName) {
-      skippedTeams.push(teamCell || '');
-      return;
-    }
-
-    playerNames.forEach((playerName, idx) => {
-      const cell = values[idx] || '';
-      const parsed = parsePredictionCell(cell);
-      if (!parsed) return;
-
-      const playerKey = playerName.toLowerCase();
-      const entry = playerMap.get(playerKey);
-      const seasonPredictions = entry.predictionsBySeason[predictionSeason] || defaultPredictions();
-      entry.predictionsBySeason[predictionSeason] = { ...seasonPredictions, [teamName]: parsed };
-      playerMap.set(playerKey, entry);
-    });
-  });
-
-  const updatedPlayers = existing
-    .filter(player => !playerMap.has((player.name || '').toLowerCase()))
-    .concat(Array.from(playerMap.values()));
-
-  saveCoPlayers(updatedPlayers);
-  refreshCoPlayerSelect();
-  renderPredictionsOverview();
-
-  return { playerNames, skippedTeams, newPlayers: Array.from(playerMap.values()) };
 }
 
 function sortTeams() {
@@ -1182,20 +1080,18 @@ function renderMembersTable(users = [], season = predictionSeason) {
     return;
   }
 
-  const table = document.createElement('table');
-  table.className = 'members-table';
+  const grid = document.createElement('div');
+  grid.className = 'members-grid';
 
-  const thead = document.createElement('thead');
-  thead.innerHTML = `<tr><th>Benutzer</th><th>Tipps (${season})</th><th>Rolle</th></tr>`;
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
   users.forEach(user => {
-    const row = document.createElement('tr');
+    const card = document.createElement('article');
+    card.className = 'member-card';
 
-    const nameCell = document.createElement('td');
-    const nameWrapper = document.createElement('div');
-    nameWrapper.className = 'members-user';
+    const header = document.createElement('div');
+    header.className = 'member-card__header';
+
+    const identity = document.createElement('div');
+    identity.className = 'member-card__identity';
 
     const avatar = document.createElement('span');
     avatar.className = 'members-avatar';
@@ -1213,23 +1109,27 @@ function renderMembersTable(users = [], season = predictionSeason) {
     meta.appendChild(nameStrong);
     if (user.email) meta.appendChild(emailSmall);
 
-    nameWrapper.appendChild(avatar);
-    nameWrapper.appendChild(meta);
-    nameCell.appendChild(nameWrapper);
+    identity.appendChild(avatar);
+    identity.appendChild(meta);
 
-    const tipsCell = document.createElement('td');
     const tipsBadge = document.createElement('span');
     tipsBadge.className = `status-chip ${user.has_tip ? 'status-chip--success' : 'status-chip--pending'}`;
     tipsBadge.innerHTML = `
       <span class="status-chip__icon">${user.has_tip ? '✔' : '–'}</span>
-      ${user.has_tip ? 'Abgegeben' : 'Offen'}
+      ${user.has_tip ? `Tipps ${season}` : 'Offen'}
     `;
-    tipsCell.appendChild(tipsBadge);
-    tipsCell.setAttribute('aria-label', user.has_tip ? 'Tipps vorhanden' : 'Keine Tipps');
+    tipsBadge.setAttribute('aria-label', user.has_tip ? 'Tipps vorhanden' : 'Keine Tipps');
 
-    const roleCell = document.createElement('td');
-    roleCell.className = 'members-role-cell';
+    header.appendChild(identity);
+    header.appendChild(tipsBadge);
+
+    const roleWrapper = document.createElement('div');
+    roleWrapper.className = 'member-card__role';
     const role = (user.role || user.user_group || 'user').toLowerCase();
+    const roleLabel = document.createElement('span');
+    roleLabel.className = 'hint';
+    roleLabel.textContent = 'Rolle';
+
     if (admin) {
       const select = document.createElement('select');
       select.className = 'members-role-select';
@@ -1242,23 +1142,21 @@ function renderMembersTable(users = [], season = predictionSeason) {
       if (user.email === auth.currentUser) {
         select.disabled = true;
       }
-      roleCell.appendChild(select);
+      roleWrapper.appendChild(roleLabel);
+      roleWrapper.appendChild(select);
     } else {
-      roleCell.appendChild(renderRoleBadge(role));
+      const roleBadge = renderRoleBadge(role);
+      roleWrapper.appendChild(roleLabel);
+      roleWrapper.appendChild(roleBadge);
     }
 
-    row.appendChild(nameCell);
-    row.appendChild(tipsCell);
-    row.appendChild(roleCell);
-    tbody.appendChild(row);
+    card.appendChild(header);
+    card.appendChild(roleWrapper);
+    grid.appendChild(card);
   });
 
-  table.appendChild(tbody);
   elements.membersContent.innerHTML = '';
-  const wrapper = document.createElement('div');
-  wrapper.className = 'members-table-wrapper';
-  wrapper.appendChild(table);
-  elements.membersContent.appendChild(wrapper);
+  elements.membersContent.appendChild(grid);
 }
 
 async function loadMembers() {
@@ -2136,30 +2034,6 @@ function updateOverviewAccess() {
   renderPredictionsOverview();
 }
 
-function handleTableImport() {
-  if (!elements.tableImport || !elements.importStatus) return;
-  const raw = elements.tableImport.value.trim();
-  if (!raw) {
-    elements.importStatus.textContent = 'Bitte füge die Tabelle ein.';
-    return;
-  }
-
-  try {
-    const { playerNames, skippedTeams, newPlayers } = importTableData(raw);
-    elements.importStatus.textContent = `Import abgeschlossen. ${playerNames.length} Spieler übernommen.`;
-    if (skippedTeams.length) {
-      elements.importStatus.textContent += ` Übersprungene Teams: ${[...new Set(skippedTeams)].join(', ')}.`;
-    }
-
-    if (newPlayers.length) {
-      setActivePredictor({ type: 'co', id: newPlayers[0].id });
-      loadPredictionsForActive();
-    }
-  } catch (err) {
-    elements.importStatus.textContent = err.message || 'Import fehlgeschlagen.';
-  }
-}
-
 function setupEvents() {
   elements.showRegister.addEventListener('click', () => showAuth('register'));
   elements.showLogin.addEventListener('click', () => showAuth('login'));
@@ -2190,7 +2064,6 @@ function setupEvents() {
   );
   elements.refreshStats.addEventListener('click', loadStats);
   elements.seasonPicker?.addEventListener('change', handleSeasonChange);
-  elements.importTableBtn?.addEventListener('click', handleTableImport);
   elements.exportCsv?.addEventListener('click', handleOverviewExport);
   elements.exportPdf?.addEventListener('click', handleOverviewPdfExport);
 }
