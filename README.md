@@ -1,2 +1,0 @@
-# nflpredictionslive
-Live Copy
