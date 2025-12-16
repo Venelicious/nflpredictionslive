@@ -1869,7 +1869,7 @@ function buildOverviewScoreboard(participants, options = {}) {
     ${hint ? `<div class="hint">${hint}</div>` : ''}
   `;
 
-  const columnTemplate = `repeat(${participants.length + 1}, 1fr))`;
+  const columnTemplate = `minmax(220px, 1.2fr) repeat(${participants.length}, minmax(180px, 1fr))`;
 
   wrapper.style.setProperty('--scoreboard-columns', columnTemplate);
 

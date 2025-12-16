@@ -1059,11 +1059,20 @@ footer {
   gap: var(--row-gap);
 }
 
+.scoreboard__header-row {
+  display: grid;
+  grid-template-columns: var(--scoreboard-columns);
+  gap: var(--col-gap);
+  padding: 6px 4px 12px;
+  align-items: center;
+}
+
 .scoreboard__row--matrix {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: var(--scoreboard-columns);
+  gap: var(--col-gap);
   padding: 8px 4px;
-  align-items: center;
+  align-items: stretch;
 }
 
 /* ACTUAL STANDINGS CELL */
