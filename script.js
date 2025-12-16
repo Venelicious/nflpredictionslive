@@ -1,87 +1,15 @@
-let DEFAULT_LOCK_DATES = {
-  '2024': '2024-09-01T12:00:00Z',
-  '2025': '2025-09-01T12:00:00Z',
-};
+let DEFAULT_LOCK_DATES = {};
 const CONFERENCE_ORDER = ['AFC', 'NFC'];
 const DIVISION_ORDER = ['East', 'North', 'South', 'West'];
 const STAT_DIVISION_ORDER = ['North', 'East', 'South', 'West'];
-let AVAILABLE_SEASONS = [
-  { value: '2024', label: 'Saison 2024/2025 (abgeschlossen)' },
-  { value: '2025', label: 'Saison 2025/2026' },
-];
+let AVAILABLE_SEASONS = [];
 const PREDICTION_SEASON_KEY = 'nflp_prediction_season';
 const CO_PLAYER_STORAGE_KEY = 'nflp_co_players';
 const ACTIVE_PREDICTOR_KEY = 'nflp_active_predictor';
-let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || AVAILABLE_SEASONS[0].value;
-let teamLogos = {
-  'Buffalo Bills': 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png',
-  'Miami Dolphins': 'https://a.espncdn.com/i/teamlogos/nfl/500/mia.png',
-  'New England Patriots': 'https://a.espncdn.com/i/teamlogos/nfl/500/ne.png',
-  'New York Jets': 'https://a.espncdn.com/i/teamlogos/nfl/500/nyj.png',
-  'Baltimore Ravens': 'https://a.espncdn.com/i/teamlogos/nfl/500/bal.png',
-  'Cincinnati Bengals': 'https://a.espncdn.com/i/teamlogos/nfl/500/cin.png',
-  'Cleveland Browns': 'https://a.espncdn.com/i/teamlogos/nfl/500/cle.png',
-  'Pittsburgh Steelers': 'https://a.espncdn.com/i/teamlogos/nfl/500/pit.png',
-  'Houston Texans': 'https://a.espncdn.com/i/teamlogos/nfl/500/hou.png',
-  'Indianapolis Colts': 'https://a.espncdn.com/i/teamlogos/nfl/500/ind.png',
-  'Jacksonville Jaguars': 'https://a.espncdn.com/i/teamlogos/nfl/500/jac.png',
-  'Tennessee Titans': 'https://a.espncdn.com/i/teamlogos/nfl/500/ten.png',
-  'Denver Broncos': 'https://a.espncdn.com/i/teamlogos/nfl/500/den.png',
-  'Kansas City Chiefs': 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png',
-  'Las Vegas Raiders': 'https://a.espncdn.com/i/teamlogos/nfl/500/lv.png',
-  'Los Angeles Chargers': 'https://a.espncdn.com/i/teamlogos/nfl/500/lac.png',
-  'Dallas Cowboys': 'https://a.espncdn.com/i/teamlogos/nfl/500/dal.png',
-  'New York Giants': 'https://a.espncdn.com/i/teamlogos/nfl/500/nyg.png',
-  'Philadelphia Eagles': 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png',
-  'Washington Commanders': 'https://a.espncdn.com/i/teamlogos/nfl/500/wsh.png',
-  'Chicago Bears': 'https://a.espncdn.com/i/teamlogos/nfl/500/chi.png',
-  'Detroit Lions': 'https://a.espncdn.com/i/teamlogos/nfl/500/det.png',
-  'Green Bay Packers': 'https://a.espncdn.com/i/teamlogos/nfl/500/gb.png',
-  'Minnesota Vikings': 'https://a.espncdn.com/i/teamlogos/nfl/500/min.png',
-  'Atlanta Falcons': 'https://a.espncdn.com/i/teamlogos/nfl/500/atl.png',
-  'Carolina Panthers': 'https://a.espncdn.com/i/teamlogos/nfl/500/car.png',
-  'New Orleans Saints': 'https://a.espncdn.com/i/teamlogos/nfl/500/no.png',
-  'Tampa Bay Buccaneers': 'https://a.espncdn.com/i/teamlogos/nfl/500/tb.png',
-  'Arizona Cardinals': 'https://a.espncdn.com/i/teamlogos/nfl/500/ari.png',
-  'Los Angeles Rams': 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png',
-  'San Francisco 49ers': 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png',
-  'Seattle Seahawks': 'https://a.espncdn.com/i/teamlogos/nfl/500/sea.png',
-};
+let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || '';
+let teamLogos = {};
 
-let teams = [
-  { name: 'Buffalo Bills', conference: 'AFC', division: 'East', league: 'NFL' },
-  { name: 'Miami Dolphins', conference: 'AFC', division: 'East', league: 'NFL' },
-  { name: 'New England Patriots', conference: 'AFC', division: 'East', league: 'NFL' },
-  { name: 'New York Jets', conference: 'AFC', division: 'East', league: 'NFL' },
-  { name: 'Baltimore Ravens', conference: 'AFC', division: 'North', league: 'NFL' },
-  { name: 'Cincinnati Bengals', conference: 'AFC', division: 'North', league: 'NFL' },
-  { name: 'Cleveland Browns', conference: 'AFC', division: 'North', league: 'NFL' },
-  { name: 'Pittsburgh Steelers', conference: 'AFC', division: 'North', league: 'NFL' },
-  { name: 'Houston Texans', conference: 'AFC', division: 'South', league: 'NFL' },
-  { name: 'Indianapolis Colts', conference: 'AFC', division: 'South', league: 'NFL' },
-  { name: 'Jacksonville Jaguars', conference: 'AFC', division: 'South', league: 'NFL' },
-  { name: 'Tennessee Titans', conference: 'AFC', division: 'South', league: 'NFL' },
-  { name: 'Denver Broncos', conference: 'AFC', division: 'West', league: 'NFL' },
-  { name: 'Kansas City Chiefs', conference: 'AFC', division: 'West', league: 'NFL' },
-  { name: 'Las Vegas Raiders', conference: 'AFC', division: 'West', league: 'NFL' },
-  { name: 'Los Angeles Chargers', conference: 'AFC', division: 'West', league: 'NFL' },
-  { name: 'Dallas Cowboys', conference: 'NFC', division: 'East', league: 'NFL' },
-  { name: 'New York Giants', conference: 'NFC', division: 'East', league: 'NFL' },
-  { name: 'Philadelphia Eagles', conference: 'NFC', division: 'East', league: 'NFL' },
-  { name: 'Washington Commanders', conference: 'NFC', division: 'East', league: 'NFL' },
-  { name: 'Chicago Bears', conference: 'NFC', division: 'North', league: 'NFL' },
-  { name: 'Detroit Lions', conference: 'NFC', division: 'North', league: 'NFL' },
-  { name: 'Green Bay Packers', conference: 'NFC', division: 'North', league: 'NFL' },
-  { name: 'Minnesota Vikings', conference: 'NFC', division: 'North', league: 'NFL' },
-  { name: 'Atlanta Falcons', conference: 'NFC', division: 'South', league: 'NFL' },
-  { name: 'Carolina Panthers', conference: 'NFC', division: 'South', league: 'NFL' },
-  { name: 'New Orleans Saints', conference: 'NFC', division: 'South', league: 'NFL' },
-  { name: 'Tampa Bay Buccaneers', conference: 'NFC', division: 'South', league: 'NFL' },
-  { name: 'Arizona Cardinals', conference: 'NFC', division: 'West', league: 'NFL' },
-  { name: 'Los Angeles Rams', conference: 'NFC', division: 'West', league: 'NFL' },
-  { name: 'San Francisco 49ers', conference: 'NFC', division: 'West', league: 'NFL' },
-  { name: 'Seattle Seahawks', conference: 'NFC', division: 'West', league: 'NFL' },
-];
+let teams = [];
 
 function buildTeamNameLookup(list) {
   return list.reduce((acc, team) => {
@@ -403,6 +331,10 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function getFallbackSeason() {
+  return predictionSeason || AVAILABLE_SEASONS[0]?.value || String(new Date().getFullYear());
+}
+
 function getLockDates() {
   return { ...DEFAULT_LOCK_DATES };
 }
@@ -413,8 +345,8 @@ function saveLockDates(lockDates) {
 
 function getLockDateForSeason(season = predictionSeason) {
   const lockDates = getLockDates();
-  const fallbackSeason = AVAILABLE_SEASONS[0]?.value;
-  const value = lockDates[season] || (fallbackSeason ? lockDates[fallbackSeason] : null);
+  const fallbackSeason = getFallbackSeason();
+  const value = lockDates[season] || lockDates[fallbackSeason] || null;
   return new Date(value || Date.now());
 }
 
@@ -473,12 +405,13 @@ function setActivePredictor({ type = 'user', id = '' }) {
 
 function migratePredictions(user, season = predictionSeason) {
   if (!user) return defaultPredictions();
+  const fallbackSeason = getFallbackSeason();
   const predictionsBySeason = {
     ...(user.predictionsBySeason || {}),
   };
 
   if (!Object.keys(predictionsBySeason).length) {
-    predictionsBySeason[AVAILABLE_SEASONS[0].value] = user.predictions || defaultPredictions();
+    predictionsBySeason[fallbackSeason] = user.predictions || defaultPredictions();
   }
 
   if (!predictionsBySeason[season]) {
@@ -497,9 +430,10 @@ function migratePredictions(user, season = predictionSeason) {
 function migrateCoPlayerPredictions(player, season = predictionSeason) {
   if (!player) return defaultPredictions();
 
+  const fallbackSeason = getFallbackSeason();
   const predictionsBySeason = { ...(player.predictionsBySeason || {}) };
   if (!Object.keys(predictionsBySeason).length && player.predictions) {
-    predictionsBySeason[AVAILABLE_SEASONS[0].value] = player.predictions;
+    predictionsBySeason[fallbackSeason] = player.predictions;
   }
 
   if (!predictionsBySeason[season]) {
