@@ -66,6 +66,14 @@ function respond($data, $code = 200) {
     exit;
 }
 
+function fetchUserById($id, $conn)
+{
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, user_group FROM users WHERE id = ?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}
+
 // ----------------------------------------
 // AUTH: /auth/register
 // ----------------------------------------
@@ -73,37 +81,45 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     global $conn, $input;
 
-    if (!$input["email"] || !$input["password"] || !$input["name"]) {
-        respond(["error" => "Name, Email und Passwort sind erforderlich"], 400);
+    if (!$input["email"] || !$input["password"] || !$input["name"] || !$input["password_confirmation"]) {
+        respond(["error" => "Name, Email, Passwort und Passwortbestätigung sind erforderlich"], 400);
+    }
+
+    if ($input["password"] !== $input["password_confirmation"]) {
+        respond(["error" => "Passwörter stimmen nicht überein"], 400);
     }
 
     // Prüfen ob Nutzer existiert
-    $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->bind_param("s", $input["email"]);
+    $stmt = $conn->prepare("SELECT id, email, name FROM users WHERE email = ? OR name = ?");
+    $stmt->bind_param("ss", $input["email"], $input["name"]);
     $stmt->execute();
     $res = $stmt->get_result();
 
     if ($res->num_rows > 0) {
-        respond(["error" => "E-Mail ist bereits registriert"], 409);
+        $existing = $res->fetch_assoc();
+        if ($existing["email"] === $input["email"]) {
+            respond(["error" => "E-Mail ist bereits registriert"], 409);
+        }
+        if ($existing["name"] === $input["name"]) {
+            respond(["error" => "Benutzername ist bereits vergeben"], 409);
+        }
     }
 
     // Passwort hashen
     $hash = password_hash($input["password"], PASSWORD_BCRYPT);
 
     // Nutzer anlegen
-    $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash, user_group) VALUES (?, ?, ?, 'user')");
     $stmt->bind_param("sss", $input["name"], $input["email"], $hash);
     $stmt->execute();
 
     $_SESSION["user_id"] = $stmt->insert_id;
 
+    $user = fetchUserById($stmt->insert_id, $conn);
+
     respond([
         "success" => true,
-        "user" => [
-            "id" => $stmt->insert_id,
-            "name" => $input["name"],
-            "email" => $input["email"]
-        ]
+        "user" => $user
     ]);
 }
 
@@ -119,7 +135,7 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
         respond(["error" => "E-Mail und Passwort sind erforderlich"], 400);
     }
 
-    $stmt = $conn->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, user_group FROM users WHERE email = ?");
     $stmt->bind_param("s", $input["email"]);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -136,6 +152,8 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     $_SESSION["user_id"] = $user["id"];
 
+    unset($user["password_hash"]);
+
     respond(["success" => true, "user" => $user]);
 }
 
@@ -151,7 +169,7 @@ if ($path === "/auth/me") {
 
     $id = $_SESSION["user_id"];
 
-    $stmt = $conn->prepare("SELECT id, name, email, favorite_team FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, user_group FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
 
@@ -188,7 +206,9 @@ if ($path === "/auth/profile" && $_SERVER["REQUEST_METHOD"] === "PUT") {
     $stmt->bind_param("ssi", $name, $fav, $userId);
     $stmt->execute();
 
-    respond(["success" => true]);
+    $updatedUser = fetchUserById($userId, $conn);
+
+    respond(["success" => true, "user" => $updatedUser]);
 }
 
 

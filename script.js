@@ -190,7 +190,8 @@ const auth = {
     this.profiles[user.email] = {
       ...existing,
       ...user,
-      favorite: user.favorite_team || user.favorite || '',
+      favorite: user.favorite_team ?? existing.favorite ?? user.favorite ?? '',
+      role: (user.user_group || user.role || existing.role || 'user').toLowerCase(),
       predictionsBySeason,
     };
     this.currentUserEmail = user.email;
@@ -209,9 +210,14 @@ const auth = {
       predictionsBySeason: profile.predictionsBySeason || { [predictionSeason]: defaultPredictions() },
     };
   },
-  async register({ name, email, password }) {
+  async register({ name, email, password, passwordConfirmation }) {
     ensureApiAvailable();
-	const { user } = await apiClient.register({ name, email, password });
+    const { user } = await apiClient.register({
+      name,
+      email,
+      password,
+      password_confirmation: passwordConfirmation,
+    });
     this.mergeUser(user);
     await this.syncTips();
     return user;
@@ -698,11 +704,13 @@ function updateAuthUI() {
       elements.lockSeasonSelect.value = predictionSeason;
       updateLockDateForm();
     }
+    applyLockDatePermission(user);
     setActivePredictor({ type: 'user', id: current });
     refreshCoPlayerSelect();
     loadPredictionsForActive();
   } else {
     showAuth('login');
+    applyLockDatePermission(null);
     refreshCoPlayerSelect();
     updateOverviewAccess();
   }
@@ -1056,6 +1064,33 @@ function updateLockInfo() {
   updateOverviewAccess();
 }
 
+function isAdmin(user) {
+  return (user?.role || '').toLowerCase() === 'admin';
+}
+
+function applyLockDatePermission(user) {
+  const admin = isAdmin(user);
+  if (elements.lockSeasonSelect) {
+    elements.lockSeasonSelect.disabled = !admin;
+  }
+  if (elements.lockDateInput) {
+    elements.lockDateInput.disabled = !admin;
+  }
+  if (elements.saveLockDate) {
+    elements.saveLockDate.disabled = !admin;
+  }
+
+  if (elements.lockDateStatus) {
+    if (!admin) {
+      elements.lockDateStatus.textContent = 'Nur Admins können den Stichtag bearbeiten.';
+      elements.lockDateStatus.className = 'status hint';
+    } else {
+      elements.lockDateStatus.textContent = '';
+      elements.lockDateStatus.className = 'status';
+    }
+  }
+}
+
 function updateLockDateForm() {
   if (!elements.lockSeasonSelect || !elements.lockDateInput) return;
   const season = elements.lockSeasonSelect.value || predictionSeason;
@@ -1066,6 +1101,12 @@ function updateLockDateForm() {
 
 function handleLockDateSave() {
   if (!elements.lockSeasonSelect || !elements.lockDateInput) return;
+  const user = auth.getUser(auth.currentUser);
+  if (!isAdmin(user)) {
+    elements.lockDateStatus.textContent = 'Keine Berechtigung: Nur Admins dürfen den Stichtag setzen.';
+    elements.lockDateStatus.className = 'status error';
+    return;
+  }
   const season = elements.lockSeasonSelect.value;
   const rawValue = elements.lockDateInput.value;
   if (!rawValue) {
@@ -1196,10 +1237,19 @@ async function handleRegister(event) {
   event.preventDefault();
   setStatus(elements.registerStatus, 'Registrierung läuft…', '');
   try {
+    const password = document.getElementById('registerPassword').value;
+    const passwordConfirmation = document.getElementById('registerPasswordConfirm').value;
+
+    if (password !== passwordConfirmation) {
+      setStatus(elements.registerStatus, 'Passwörter stimmen nicht überein.', 'error');
+      return;
+    }
+
     await auth.register({
       name: document.getElementById('registerName').value.trim(),
       email: document.getElementById('registerEmail').value.trim().toLowerCase(),
-      password: document.getElementById('registerPassword').value,
+      password,
+      passwordConfirmation,
     });
     showAuth('');
     setStatus(elements.registerStatus, 'Registrierung erfolgreich!', 'success');
