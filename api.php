@@ -270,12 +270,15 @@ function buildRecommendation($players)
 
     foreach ($slots as $slot => $count) {
         if ($slot === 'FLEX') {
-            continue;
+            $eligible = array_filter($scored, function ($player) use ($usedIds) {
+                $pos = strtoupper($player['position'] ?? '');
+                return !in_array($player['id'], $usedIds, true) && in_array($pos, ['RB', 'WR', 'TE']);
+            });
+        } else {
+            $eligible = array_filter($scored, function ($player) use ($slot, $usedIds) {
+                return !in_array($player['id'], $usedIds, true) && strtoupper($player['position'] ?? '') === $slot;
+            });
         }
-
-        $eligible = array_filter($scored, function ($player) use ($slot, $usedIds) {
-            return !in_array($player['id'], $usedIds, true) && strtoupper($player['position'] ?? '') === $slot;
-        });
 
         $eligible = array_slice(array_values($eligible), 0, $count);
         foreach ($eligible as $player) {
@@ -283,18 +286,6 @@ function buildRecommendation($players)
             $starters[] = $player;
             $usedIds[] = $player['id'];
         }
-    }
-
-    $flexEligible = array_filter($scored, function ($player) use ($usedIds) {
-        $pos = strtoupper($player['position'] ?? '');
-        return !in_array($player['id'], $usedIds, true) && in_array($pos, ['RB', 'WR', 'TE']);
-    });
-
-    if (count($flexEligible)) {
-        $flexPlayer = array_values($flexEligible)[0];
-        $flexPlayer['slot'] = 'FLEX';
-        $starters[] = $flexPlayer;
-        $usedIds[] = $flexPlayer['id'];
     }
 
     $bench = array_values(array_filter($scored, function ($player) use ($usedIds) {
