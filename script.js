@@ -206,11 +206,14 @@ const auth = {
       predictionsBySeason[predictionSeason] = defaultPredictions();
     }
 
+    const roleValue = user.user_group ?? user.role ?? existing.role ?? 'user';
+    const normalizedRole = typeof roleValue === 'string' ? roleValue.trim().toLowerCase() : 'user';
+
     this.profiles[user.email] = {
       ...existing,
       ...user,
       favorite: user.favorite_team ?? existing.favorite ?? user.favorite ?? '',
-      role: (user.user_group || user.role || existing.role || 'user').toLowerCase(),
+      role: normalizedRole,
       predictionsBySeason,
     };
     this.currentUserEmail = user.email;
@@ -1026,7 +1029,7 @@ function updateLockInfo() {
 }
 
 function isAdmin(user) {
-  return (user?.role || '').toLowerCase() === 'admin';
+  return (user?.role || '').trim().toLowerCase() === 'admin';
 }
 
 function renderRoleBadge(role) {
