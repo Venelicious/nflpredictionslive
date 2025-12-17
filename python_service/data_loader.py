@@ -3,6 +3,18 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Tuple
 
+import importlib.util
+
+if importlib.util.find_spec("pandas") is None:
+    raise ImportError(
+        "Missing dependency 'pandas'. Install via `pip install -r python_service/requirements.txt`."
+    )
+
+if importlib.util.find_spec("nflreadpy") is None:
+    raise ImportError(
+        "Missing dependency 'nflreadpy'. Install via `pip install -r python_service/requirements.txt`."
+    )
+
 import pandas as pd
 from nflreadpy import nflread as nfl
 
