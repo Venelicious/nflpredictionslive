@@ -975,18 +975,28 @@ function calculateTeamPoints(teamName, prediction) {
 
   let points = 0;
   if (prediction.divisionRank === actualRank) points += 1;
-  if (prediction.wins === actualStats.wins && prediction.losses === actualStats.losses) points += 1;
+  if (prediction.wins === actualStats.wins && prediction.losses === actualStats.losses) points += 2;
   return points;
 }
 
 function calculateDivisionBonus(divisionEntries) {
   if (!standingsSnapshot) return 0;
-  return divisionEntries.every(entry => {
+
+  const allStandingsCorrect = divisionEntries.every(entry => {
     const rank = standingsSnapshot.divisionRanks[entry.team.name];
     return rank === entry.prediction.divisionRank;
-  })
-    ? 1
-    : 0;
+  });
+
+  if (!allStandingsCorrect) return 0;
+
+  const allRecordsCorrect = divisionEntries.every(entry => {
+    const stats = standingsSnapshot.teamStats[entry.team.name];
+    return stats && entry.prediction.wins === stats.wins && entry.prediction.losses === stats.losses;
+  });
+
+  let bonus = 3;
+  if (allRecordsCorrect) bonus += 5;
+  return bonus;
 }
 
 function calculateUserTotalPoints(predictions) {
@@ -2210,7 +2220,7 @@ function buildOverviewScoreboard(participants, options = {}) {
       infoCell.className = 'scoreboard__cell scoreboard__cell--info';
       infoCell.innerHTML = `
         <div class="scoreboard__bonus-label">Bonus</div>
-        <div class="scoreboard__bonus-hint">Perfekte Division = +1</div>
+        <div class="scoreboard__bonus-hint">Perfekte Division = +3 · Perfekt mit Record = +5</div>
       `;
       bonusRow.appendChild(infoCell);
 
@@ -2218,11 +2228,13 @@ function buildOverviewScoreboard(participants, options = {}) {
         const bonus = calculateDivisionBonus(entries);
         const cell = document.createElement('div');
         cell.className = 'scoreboard__cell scoreboard__cell--bonus bonus-compact';
+        const bonusCaption =
+          bonus >= 8 ? 'Standings + Record' : bonus >= 3 ? 'Standings perfekt' : 'Noch offen';
         cell.innerHTML = `
           <div class="bonus-chip ${bonus ? 'bonus-chip--active' : ''}">
-            ${bonus ? '⭐️ +1' : '–'}
+            ${bonus ? `⭐️ +${bonus}` : '–'}
           </div>
-          <div class="bonus-chip__caption">${bonus ? 'Perfekt getippt' : 'Noch offen'}</div>
+          <div class="bonus-chip__caption">${bonusCaption}</div>
         `;
         bonusRow.appendChild(cell);
       });
