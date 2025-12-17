@@ -45,6 +45,7 @@
         <a class="tab-link" data-tab="statsTab" role="tab" href="#">NFL Stats</a>
         <a class="tab-link" data-tab="overviewTab" role="tab" href="#">Tipps-Übersicht</a>
         <a class="tab-link" data-tab="membersTab" role="tab" href="#">Mitglieder</a>
+        <a class="tab-link hidden" data-tab="adminTab" id="adminTabLink" role="tab" href="#">Verwaltung</a>
       </nav>
 
       <div class="tab-toolbar">
@@ -78,23 +79,6 @@
               <button type="submit">Profil speichern</button>
               <p class="status" id="profileStatus"></p>
             </form>
-
-            <div class="card">
-              <h3>Saison-Stichtage</h3>
-              <div class="form-grid">
-                <label class="form-field">
-                  Saison
-                  <select id="lockSeasonSelect"></select>
-                </label>
-                <label class="form-field">
-                  Stichtag (Datum &amp; Uhrzeit)
-                  <input type="datetime-local" id="lockDateInput">
-                </label>
-              </div>
-              <button id="saveLockDate" type="button">Stichtag speichern</button>
-              <p class="status" id="lockDateStatus"></p>
-            </div>
-
           </div>
         </section>
 
@@ -147,6 +131,63 @@
             <p class="status" id="membersStatus"></p>
           </div>
           <div id="membersContent" class="card members-card"></div>
+        </section>
+
+        <section id="adminTab" class="tab-pane">
+          <div class="pane-header">
+            <div>
+              <h2>Verwaltung</h2>
+              <p class="hint">Saisons verwalten, Stichtage anpassen und den Status aktualisieren.</p>
+            </div>
+            <p class="status" id="adminStatus"></p>
+          </div>
+
+          <div class="admin-grid">
+            <div class="card">
+              <h3>Saison-Stichtage</h3>
+              <div class="form-grid">
+                <label class="form-field">
+                  Saison
+                  <select id="lockSeasonSelect"></select>
+                </label>
+                <label class="form-field">
+                  Stichtag (Datum &amp; Uhrzeit)
+                  <input type="datetime-local" id="lockDateInput">
+                </label>
+              </div>
+              <button id="saveLockDate" type="button">Stichtag speichern</button>
+              <p class="status" id="lockDateStatus"></p>
+            </div>
+
+            <div class="card">
+              <h3>Neue Saison hinzufügen</h3>
+              <form id="seasonForm" class="stacked-form">
+                <label class="form-field">
+                  Saison
+                  <input type="text" id="seasonValue" required placeholder="z. B. 2026">
+                </label>
+                <label class="form-field">
+                  Anzeigename
+                  <input type="text" id="seasonLabel" required placeholder="Saison 2026/2027">
+                </label>
+                <label class="form-field">
+                  Stichtag (optional)
+                  <input type="datetime-local" id="seasonLockDate">
+                </label>
+                <label class="form-checkbox">
+                  <input type="checkbox" id="seasonCompleted">
+                  <span>Saison ist abgeschlossen</span>
+                </label>
+                <button type="submit">Saison speichern</button>
+                <p class="status" id="seasonFormStatus"></p>
+              </form>
+            </div>
+
+            <div class="card">
+              <h3>Vorhandene Saisons</h3>
+              <div id="adminSeasonList" class="season-admin-list"></div>
+            </div>
+          </div>
         </section>
       </div>
     </section>

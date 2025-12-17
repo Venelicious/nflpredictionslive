@@ -439,10 +439,30 @@ select {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.admin-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+}
+
+.stacked-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
 }
 
 .form-field { display: grid; gap: 6px; font-weight: 700; }
@@ -467,6 +487,64 @@ button { font-family: inherit; }
 .status { min-height: 20px; margin: 8px 0 0; color: var(--gray-500); }
 .status.success { color: #0c9f6f; }
 .status.error { color: #d92d20; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--gray-100);
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.badge--success { background: #e6f7f0; color: #137247; }
+.badge--info { background: #e7f1ff; color: #1b63d9; }
+
+.season-admin-list { display: flex; flex-direction: column; gap: 12px; }
+
+.admin-season-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.admin-season-card {
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  padding: 12px;
+  background: linear-gradient(180deg, #f9fbff, #ffffff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.admin-season-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-season-card__title { display: grid; gap: 4px; }
+
+.admin-season-card__body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-season-card__meta { color: var(--gray-500); font-weight: 600; }
+
+.admin-season-card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .hint { color: var(--gray-500); margin: 4px 0 0; }
 

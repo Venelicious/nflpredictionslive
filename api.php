@@ -103,7 +103,7 @@ function requireAdmin($conn)
 
 function loadSeasons($conn)
 {
-    $result = $conn->query("SELECT season, label, lock_date FROM seasons ORDER BY season ASC");
+    $result = $conn->query("SELECT season, label, lock_date, completed FROM seasons ORDER BY season ASC");
     if (!$result) {
         respond(["error" => "Seasons konnten nicht geladen werden."], 500);
     }
@@ -125,6 +125,7 @@ function loadSeasons($conn)
             "season" => $row["season"],
             "label" => $row["label"],
             "lock_date" => $isoLockDate,
+            "completed" => (bool)($row["completed"] ?? false),
         ];
     }
 
@@ -153,6 +154,108 @@ if ($path === "/metadata" && $_SERVER["REQUEST_METHOD"] === "GET") {
     $seasons = loadSeasons($conn);
     $teams = loadTeams($conn);
     respond(["seasons" => $seasons, "teams" => $teams]);
+}
+
+if ($path === "/metadata/seasons" && $_SERVER["REQUEST_METHOD"] === "POST") {
+    requireAdmin($conn);
+
+    $season = trim($input["season"] ?? "");
+    $label = trim($input["label"] ?? "");
+    $lockDate = $input["lock_date"] ?? null;
+    $completed = isset($input["completed"]) ? (int) !!$input["completed"] : 0;
+
+    if (!$season || !$label) {
+        respond(["error" => "season und label sind erforderlich."], 400);
+    }
+
+    $lockDateValue = null;
+    if ($lockDate) {
+        try {
+            $dt = new DateTime($lockDate);
+            $lockDateValue = $dt->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            respond(["error" => "Ungültiges Datumsformat."], 400);
+        }
+    }
+
+    $stmt = $conn->prepare("INSERT INTO seasons (season, label, lock_date, completed) VALUES (?, ?, ?, ?)");
+    $stmt->bind_param("sssi", $season, $label, $lockDateValue, $completed);
+
+    if (!$stmt->execute()) {
+        if ($stmt->errno === 1062) {
+            respond(["error" => "Die Saison existiert bereits."], 409);
+        }
+        respond(["error" => "Saison konnte nicht gespeichert werden."], 500);
+    }
+
+    $response = [
+        "season" => $season,
+        "label" => $label,
+        "lock_date" => $lockDateValue ? (new DateTime($lockDateValue))->format(DateTime::ATOM) : null,
+        "completed" => (bool)$completed,
+    ];
+
+    respond(["success" => true, "season" => $response], 201);
+}
+
+if (preg_match('/^\/metadata\/seasons\/([^\/]+)$/', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
+    requireAdmin($conn);
+
+    $season = $matches[1];
+    $checkStmt = $conn->prepare("SELECT season FROM seasons WHERE season = ?");
+    $checkStmt->bind_param("s", $season);
+    $checkStmt->execute();
+    $exists = $checkStmt->get_result()->num_rows > 0;
+
+    if (!$exists) {
+        respond(["error" => "Saison wurde nicht gefunden."], 404);
+    }
+
+    $fields = [];
+    $params = [];
+    $types = '';
+
+    if (array_key_exists("label", $input)) {
+        $fields[] = "label = ?";
+        $params[] = $input["label"];
+        $types .= 's';
+    }
+
+    if (array_key_exists("lock_date", $input)) {
+        $lockDateValue = null;
+        $lockDate = $input["lock_date"];
+        if ($lockDate) {
+            try {
+                $dt = new DateTime($lockDate);
+                $lockDateValue = $dt->format('Y-m-d H:i:s');
+            } catch (Exception $e) {
+                respond(["error" => "Ungültiges Datumsformat."], 400);
+            }
+        }
+        $fields[] = "lock_date = ?";
+        $params[] = $lockDateValue;
+        $types .= 's';
+    }
+
+    if (array_key_exists("completed", $input)) {
+        $fields[] = "completed = ?";
+        $params[] = (int) !!$input["completed"];
+        $types .= 'i';
+    }
+
+    if (!$fields) {
+        respond(["error" => "Es wurden keine Felder zum Aktualisieren übergeben."], 400);
+    }
+
+    $params[] = $season;
+    $types .= 's';
+
+    $query = "UPDATE seasons SET " . implode(', ', $fields) . " WHERE season = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+
+    respond(["success" => true]);
 }
 
 if (preg_match('/^\/metadata\/seasons\/([^\/]+)\/lock-date$/', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
