@@ -293,7 +293,7 @@ ALTER TABLE `sessions`
 --
 ALTER TABLE `tips`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `uniq_user_season_game` (`user_id`,`season`,`game_id`),
+  ADD UNIQUE KEY `uniq_user_season` (`user_id`,`season`),
   ADD KEY `fk_tips_game` (`game_id`);
 
 --
