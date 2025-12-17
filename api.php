@@ -58,50 +58,7 @@ function ensureUsersTable($conn)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 }
 
-function ensureSeasonsTable($conn)
-{
-    $conn->query("CREATE TABLE IF NOT EXISTS `seasons` (
-        `season` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
-        `label` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-        `lock_date` datetime DEFAULT NULL,
-        `is_closed` tinyint(1) NOT NULL DEFAULT '0',
-        PRIMARY KEY (`season`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
-}
-
-function ensureTeamsTable($conn)
-{
-    $conn->query("CREATE TABLE IF NOT EXISTS `teams` (
-        `id` int NOT NULL AUTO_INCREMENT,
-        `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-        `conference` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
-        `division` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
-        `league` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'NFL',
-        `logo_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
-        PRIMARY KEY (`id`),
-        UNIQUE KEY `uniq_team_name` (`name`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
-}
-
-function ensureTipsTable($conn)
-{
-    $conn->query("CREATE TABLE IF NOT EXISTS `tips` (
-        `id` int NOT NULL AUTO_INCREMENT,
-        `user_id` int NOT NULL,
-        `season` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
-        `game_id` int DEFAULT NULL,
-        `predicted_winner` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-        `payload` json DEFAULT NULL,
-        `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-        `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
-}
-
 ensureUsersTable($conn);
-ensureSeasonsTable($conn);
-ensureTeamsTable($conn);
-ensureTipsTable($conn);
 
 function ensureColumnExists($conn, $table, $column, $definition)
 {
