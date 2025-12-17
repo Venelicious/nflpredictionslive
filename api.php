@@ -405,16 +405,35 @@ function scorePlayer($player)
 
     $projectionLookup = buildProjectionLookup();
     $projectionData = $projectionLookup['by_player'][(string)$player['id']] ?? null;
+    $currentWeek = fetchCurrentNflWeek();
+
+    if ($currentWeek && isset($player['bye_week']) && (int)$player['bye_week'] === (int)$currentWeek) {
+        $score -= 8;
+        $reasons[] = sprintf('Bye Week (%s) – starker Malus', $player['bye_week']);
+    }
+
     if ($projectionData) {
         $projScore = $projectionData['score'];
         $positionScores = $projectionLookup['position_scores'][$position] ?? [];
         $percentile = percentileRank($positionScores, $projScore);
         if ($percentile !== null) {
-            $bonus = round(($percentile - 0.5) * 6, 2); // approximately -3 to +3
-            $score += $bonus;
+            $percentBonus = round(($percentile - 0.5) * 8, 2); // approximately -4 to +4
+            $projectionWeight = round($projScore * 0.25, 2); // direkte Punkte aus Projection stärker gewichten
+
+            $score += $percentBonus + $projectionWeight;
+
             $percentLabel = round($percentile * 100);
-            $reasons[] = sprintf('Projection-Score %.1f Punkte (%d. Perzentil, Bonus %.2f)', $projScore, $percentLabel, $bonus);
+            $reasons[] = sprintf(
+                'Projection-Score %.1f Punkte (%d. Perzentil, Bonus %.2f, gewichteter Zuschlag %.2f)',
+                $projScore,
+                $percentLabel,
+                $percentBonus,
+                $projectionWeight
+            );
         }
+    } else {
+        $score -= 2;
+        $reasons[] = 'Keine Projection gefunden (leichter Malus)';
     }
 
     return [
