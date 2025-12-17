@@ -2048,7 +2048,11 @@ async function loadLineupRecommendations(rosterOverride = '') {
   try {
     const data = await apiClient.getLineupRecommendations(payload || undefined);
     renderLineupResults(data);
-    setLineupStatus('Empfehlungen aktualisiert.', 'success');
+    if (data?.projection_warning) {
+      setLineupStatus(data.projection_warning, 'error');
+    } else {
+      setLineupStatus('Empfehlungen aktualisiert.', 'success');
+    }
     if (payload) {
       persistLineupSource(payload);
     }

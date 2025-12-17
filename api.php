@@ -227,13 +227,46 @@ function fetchNflverseLineupProjections($week = null, $season = null)
     $seasonArg = escapeshellarg((string)$season);
     $weekArg = $week ? ' --week ' . escapeshellarg((string)$week) : '';
 
-    $command = "python3 {$script} --season {$seasonArg}{$weekArg}";
-    $output = shell_exec($command);
+    $command = "python3 {$script} --season {$seasonArg}{$weekArg} 2>&1";
+    $outputLines = [];
+    $exitCode = 0;
+    exec($command, $outputLines, $exitCode);
 
+    if ($exitCode !== 0) {
+        $message = trim(implode("\n", $outputLines));
+        $baseMessage = $message ?: 'Lineup-Service konnte nicht gestartet werden.';
+        $helpText = ' Bitte prüfe die nflreadpy Installation.'
+            . "\nBeispiel: import nflreadpy as nfl; pbp = nfl.load_pbp()."
+            . "\nHäufige load functions: load_pbp, load_player_stats, load_team_stats, load_schedules, load_players."
+            . "\nWeitere Funktionen: https://nflreadpy.nflverse.com/api/load_functions/."
+            . "\nKonfiguration: https://nflreadpy.nflverse.com/api/configuration/."
+            . "\nCaching: https://nflreadpy.nflverse.com/api/cache/."
+            . "\nUtilities: https://nflreadpy.nflverse.com/api/utils/.";
+        $GLOBALS['nflverse_projection_error'] = $baseMessage . $helpText;
+
+        error_log("nflverse lineup export failed ({$exitCode}): {$baseMessage}");
+        $cache[$weekKey] = [];
+        return $cache[$weekKey];
+    }
+
+    $output = implode("\n", $outputLines);
     $decoded = json_decode($output ?: '', true);
-    $cache[$weekKey] = is_array($decoded) ? $decoded : [];
+    if (!is_array($decoded)) {
+        $GLOBALS['nflverse_projection_error'] = $output ? 'Unerwartete Ausgabe des Lineup-Services.' : 'Keine Ausgabe vom Lineup-Service erhalten.';
+        error_log("nflverse lineup export returned invalid JSON: {$output}");
+        $cache[$weekKey] = [];
+        return $cache[$weekKey];
+    }
+
+    $cache[$weekKey] = $decoded;
+    $GLOBALS['nflverse_projection_error'] = null;
 
     return $cache[$weekKey];
+}
+
+function getLastProjectionError()
+{
+    return $GLOBALS['nflverse_projection_error'] ?? null;
 }
 
 function calculateProjectionFantasyPoints(array $projection, string $position)
@@ -724,15 +757,22 @@ if ($path === "/lineup/recommendations" && $_SERVER["REQUEST_METHOD"] === "GET")
 
     $players = resolveRosterPlayers($roster, $leagueId);
     $lineup = buildRecommendation($players);
+    $projectionWarning = getLastProjectionError();
 
-    respond([
+    $response = [
         "roster_id" => $rosterId,
         "league_id" => $leagueId,
         "source" => $raw,
         "players" => $players,
         "starters" => $lineup['starters'],
         "bench" => $lineup['bench'],
-    ]);
+    ];
+
+    if ($projectionWarning) {
+        $response['projection_warning'] = $projectionWarning;
+    }
+
+    respond($response);
 }
 
 // ----------------------------------------

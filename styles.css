@@ -484,7 +484,7 @@ textarea {
 
 button { font-family: inherit; }
 
-.status { min-height: 20px; margin: 8px 0 0; color: var(--gray-500); }
+.status { min-height: 20px; margin: 8px 0 0; color: var(--gray-500); white-space: pre-line; }
 .status.success { color: #0c9f6f; }
 .status.error { color: #d92d20; }
 
