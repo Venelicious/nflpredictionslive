@@ -94,7 +94,8 @@ function ensureTipsTable($conn)
         `payload` json DEFAULT NULL,
         `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (`id`)
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uniq_user_season` (`user_id`, `season`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;");
 }
 
@@ -114,8 +115,23 @@ function ensureColumnExists($conn, $table, $column, $definition)
     }
 }
 
+function ensureUniqueIndex($conn, $table, $indexName, $columns)
+{
+    $stmt = $conn->prepare("SHOW INDEX FROM `$table` WHERE Key_name = ?");
+    $stmt->bind_param("s", $indexName);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result->num_rows === 0) {
+        $columnsList = implode(',', array_map(function ($col) {
+            return "`" . $col . "`";
+        }, $columns));
+        $conn->query("CREATE UNIQUE INDEX `$indexName` ON `$table` ($columnsList)");
+    }
+}
+
 ensureColumnExists($conn, 'seasons', 'is_closed', "TINYINT(1) NOT NULL DEFAULT 0");
 ensureColumnExists($conn, 'users', 'avatar_url', "VARCHAR(500) NULL");
+ensureUniqueIndex($conn, 'tips', 'uniq_user_season', ['user_id', 'season']);
 
 // ----------------------------------------
 // JSON Body einlesen
