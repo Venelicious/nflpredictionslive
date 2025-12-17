@@ -162,6 +162,174 @@ function fetchSleeperPlayers()
     return $cache;
 }
 
+function fetchCurrentNflWeek()
+{
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $state = httpGetJson("https://api.sleeper.app/v1/state/nfl");
+    $week = (int)($state['week'] ?? 0);
+    $cached = $week > 0 ? $week : null;
+
+    return $cached;
+}
+
+function fetchSleeperProjections($week = null)
+{
+    static $cache = [];
+
+    $weekKey = $week ?: 'current';
+    if (array_key_exists($weekKey, $cache)) {
+        return $cache[$weekKey];
+    }
+
+    if ($week === null) {
+        $week = fetchCurrentNflWeek();
+    }
+
+    $params = [
+        'season_type' => 'regular',
+    ];
+
+    if ($week) {
+        $params['week'] = $week;
+    }
+
+    $query = http_build_query($params);
+    $url = "https://api.sleeper.app/v1/players/nfl/projections" . ($query ? "?{$query}" : '');
+
+    $data = httpGetJson($url);
+    $cache[$weekKey] = is_array($data) ? $data : [];
+
+    return $cache[$weekKey];
+}
+
+function calculateProjectionFantasyPoints(array $projection, string $position)
+{
+    $stats = $projection['stats'] ?? [];
+    $pts = 0.0;
+
+    switch (strtoupper($position)) {
+        case 'QB':
+            $pts += ($stats['pass_yd'] ?? 0) / 25;
+            $pts += ($stats['pass_td'] ?? 0) * 4;
+            $pts -= ($stats['pass_int'] ?? 0) * 2;
+            $pts += ($stats['rush_yd'] ?? 0) / 10;
+            $pts += ($stats['rush_td'] ?? 0) * 6;
+            $pts -= ($stats['fumbles_lost'] ?? 0) * 2;
+            break;
+        case 'RB':
+        case 'WR':
+        case 'TE':
+            $pts += ($stats['rush_yd'] ?? 0) / 10;
+            $pts += ($stats['rush_td'] ?? 0) * 6;
+            $pts += ($stats['rec'] ?? 0) * 0.5;
+            $pts += ($stats['rec_yd'] ?? 0) / 10;
+            $pts += ($stats['rec_td'] ?? 0) * 6;
+            $pts -= ($stats['fumbles_lost'] ?? 0) * 2;
+            break;
+        case 'K':
+            $fgm = ($stats['fgm'] ?? 0)
+                + ($stats['fgm_0_19'] ?? 0)
+                + ($stats['fgm_20_29'] ?? 0)
+                + ($stats['fgm_30_39'] ?? 0)
+                + ($stats['fgm_40_49'] ?? 0)
+                + ($stats['fgm_50p'] ?? 0);
+            $pts += $fgm * 3;
+            $pts += ($stats['xpm'] ?? 0) * 1;
+            break;
+        case 'DEF':
+            $pts += ($stats['def_st_td'] ?? 0) * 6; // defensive/special teams TDs
+            $pts += ($stats['int'] ?? 0) * 2;
+            $pts += ($stats['fum_rec'] ?? 0) * 2;
+            $pts += ($stats['sack'] ?? 0) * 1;
+            $pts += ($stats['safety'] ?? 0) * 2;
+            $pointsAllowed = $stats['pts_allowed'] ?? null;
+            if ($pointsAllowed !== null) {
+                if ($pointsAllowed === 0) {
+                    $pts += 5;
+                } elseif ($pointsAllowed <= 6) {
+                    $pts += 4;
+                } elseif ($pointsAllowed <= 13) {
+                    $pts += 3;
+                } elseif ($pointsAllowed <= 20) {
+                    $pts += 1;
+                } elseif ($pointsAllowed >= 35) {
+                    $pts -= 3;
+                }
+            }
+            break;
+        default:
+            $pts += ($stats['pts_ppr'] ?? $stats['pts_std'] ?? 0);
+            break;
+    }
+
+    return round($pts, 2);
+}
+
+function buildProjectionLookup($week = null)
+{
+    static $cache = [];
+    $weekKey = $week ?: 'current';
+    if (array_key_exists($weekKey, $cache)) {
+        return $cache[$weekKey];
+    }
+
+    $projections = fetchSleeperProjections($week);
+    $byPlayer = [];
+    $positionScores = [];
+
+    foreach ($projections as $playerId => $projection) {
+        $position = strtoupper($projection['position'] ?? ($projection['fantasy_positions'][0] ?? ''));
+        $score = calculateProjectionFantasyPoints($projection, $position);
+
+        $byPlayer[(string)$playerId] = [
+            'position' => $position,
+            'score' => $score,
+            'projection' => $projection,
+        ];
+
+        if (!isset($positionScores[$position])) {
+            $positionScores[$position] = [];
+        }
+        $positionScores[$position][] = $score;
+    }
+
+    // Sort scores for percentile lookup
+    foreach ($positionScores as $pos => $scores) {
+        sort($scores);
+        $positionScores[$pos] = $scores;
+    }
+
+    $cache[$weekKey] = [
+        'by_player' => $byPlayer,
+        'position_scores' => $positionScores,
+    ];
+
+    return $cache[$weekKey];
+}
+
+function percentileRank(array $sortedScores, float $value)
+{
+    if (!count($sortedScores)) {
+        return null;
+    }
+
+    $count = count($sortedScores);
+    $index = 0;
+    foreach ($sortedScores as $i => $score) {
+        if ($score <= $value) {
+            $index = $i + 1;
+        } else {
+            break;
+        }
+    }
+
+    return $index / $count;
+}
+
 function normalizePlayerEntry($playerId, $playerData)
 {
     $fullName = $playerData['full_name'] ?? trim(($playerData['first_name'] ?? '') . ' ' . ($playerData['last_name'] ?? ''));
@@ -233,6 +401,20 @@ function scorePlayer($player)
     if ($age && $age < 25 && in_array($position, ['RB', 'WR', 'TE'])) {
         $score += 0.5;
         $reasons[] = 'Junger Skill-Player (leichter Bonus)';
+    }
+
+    $projectionLookup = buildProjectionLookup();
+    $projectionData = $projectionLookup['by_player'][(string)$player['id']] ?? null;
+    if ($projectionData) {
+        $projScore = $projectionData['score'];
+        $positionScores = $projectionLookup['position_scores'][$position] ?? [];
+        $percentile = percentileRank($positionScores, $projScore);
+        if ($percentile !== null) {
+            $bonus = round(($percentile - 0.5) * 6, 2); // approximately -3 to +3
+            $score += $bonus;
+            $percentLabel = round($percentile * 100);
+            $reasons[] = sprintf('Projection-Score %.1f Punkte (%d. Perzentil, Bonus %.2f)', $projScore, $percentLabel, $bonus);
+        }
     }
 
     return [
