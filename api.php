@@ -77,6 +77,236 @@ function respond($data, $code = 200) {
     exit;
 }
 
+function parseRosterSource($value)
+{
+    $clean = trim((string)$value);
+    if ($clean === '') {
+        return [null, null];
+    }
+
+    if (preg_match('#/roster/(\d+)(?:/(\d+))?#', $clean, $matches)) {
+        $leagueId = $matches[1] ?? null;
+        $rosterId = $matches[2] ?? $leagueId;
+        return [$rosterId, $leagueId];
+    }
+
+    if (preg_match('/^(\d{3,})$/', $clean, $matches)) {
+        return [$matches[1], null];
+    }
+
+    if (preg_match('/(\d{3,})/', $clean, $matches)) {
+        return [$matches[1], null];
+    }
+
+    return [null, null];
+}
+
+function httpGetJson($url)
+{
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    $response = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+
+    if ($response === false || $status >= 400) {
+        return null;
+    }
+
+    $decoded = json_decode($response, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function fetchSleeperRoster($rosterId, $leagueId = null)
+{
+    if ($leagueId) {
+        $leagueRosters = httpGetJson("https://api.sleeper.app/v1/league/{$leagueId}/rosters");
+        if (!is_array($leagueRosters)) {
+            return [null, "Roster konnte nicht aus der Liga geladen werden."];
+        }
+
+        if ($rosterId) {
+            foreach ($leagueRosters as $entry) {
+                if ((string)($entry['roster_id'] ?? '') === (string)$rosterId) {
+                    return [$entry, null];
+                }
+            }
+            return [null, "Roster-ID wurde in der Liga nicht gefunden."];
+        }
+
+        return [$leagueRosters[0] ?? null, null];
+    }
+
+    if (!$rosterId) {
+        return [null, "Keine gültige Roster-ID angegeben."];
+    }
+
+    $roster = httpGetJson("https://api.sleeper.app/v1/roster/{$rosterId}");
+    if (!$roster) {
+        return [null, "Roster konnte nicht geladen werden."];
+    }
+
+    return [$roster, null];
+}
+
+function fetchSleeperPlayers()
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $data = httpGetJson("https://api.sleeper.app/v1/players/nfl");
+    $cache = is_array($data) ? $data : [];
+    return $cache;
+}
+
+function normalizePlayerEntry($playerId, $playerData)
+{
+    $fullName = $playerData['full_name'] ?? trim(($playerData['first_name'] ?? '') . ' ' . ($playerData['last_name'] ?? ''));
+    $positions = $playerData['fantasy_positions'] ?? [];
+    $primaryPosition = $playerData['position'] ?? ($positions[0] ?? '');
+
+    return [
+        'id' => (string)$playerId,
+        'name' => $fullName ?: "Unbekannter Spieler {$playerId}",
+        'team' => $playerData['team'] ?? ($playerData['last_team'] ?? null),
+        'position' => $primaryPosition,
+        'fantasy_positions' => $positions,
+        'status' => $playerData['status'] ?? null,
+        'injury_status' => $playerData['injury_status'] ?? null,
+        'bye_week' => $playerData['bye_week'] ?? null,
+        'age' => $playerData['age'] ?? null,
+    ];
+}
+
+function resolveRosterPlayers($roster, $leagueId = null)
+{
+    $playerIds = $roster['players'] ?? [];
+    if (!is_array($playerIds) || !count($playerIds)) {
+        return [];
+    }
+
+    $playerMap = fetchSleeperPlayers();
+
+    return array_map(function ($pid) use ($playerMap) {
+        $meta = $playerMap[$pid] ?? [];
+        return normalizePlayerEntry($pid, $meta);
+    }, $playerIds);
+}
+
+function scorePlayer($player)
+{
+    $base = [
+        'QB' => 16,
+        'RB' => 13,
+        'WR' => 13,
+        'TE' => 9,
+        'K' => 8,
+        'DEF' => 8,
+    ];
+
+    $position = strtoupper($player['position'] ?? '');
+    $score = $base[$position] ?? 7;
+    $reasons = ["Basis-Score für Position {$position}: {$score}"];
+
+    $status = strtolower((string)($player['status'] ?? ''));
+    if (in_array($status, ['out', 'inactive'])) {
+        $score -= 6;
+        $reasons[] = 'Status Out/Inactive (hoher Malus)';
+    } elseif (in_array($status, ['questionable', 'doubtful'])) {
+        $score -= 2;
+        $reasons[] = 'Status fraglich';
+    }
+
+    $injury = strtolower((string)($player['injury_status'] ?? ''));
+    if ($injury === 'ir') {
+        $score -= 5;
+        $reasons[] = 'Injured Reserve';
+    } elseif (in_array($injury, ['questionable', 'doubtful'])) {
+        $score -= 1.5;
+        $reasons[] = 'Verletzungswarnung';
+    }
+
+    $age = $player['age'] ?? null;
+    if ($age && $age < 25 && in_array($position, ['RB', 'WR', 'TE'])) {
+        $score += 0.5;
+        $reasons[] = 'Junger Skill-Player (leichter Bonus)';
+    }
+
+    return [
+        'score' => round($score, 2),
+        'reasons' => $reasons,
+    ];
+}
+
+function buildRecommendation($players)
+{
+    $slots = [
+        'QB' => 1,
+        'RB' => 2,
+        'WR' => 2,
+        'TE' => 1,
+        'FLEX' => 1,
+        'K' => 1,
+        'DEF' => 1,
+    ];
+
+    $scored = array_map(function ($player) {
+        $eval = scorePlayer($player);
+        return array_merge($player, [
+            'score' => $eval['score'],
+            'reasons' => $eval['reasons'],
+        ]);
+    }, $players);
+
+    usort($scored, function ($a, $b) {
+        return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+    });
+
+    $starters = [];
+    $usedIds = [];
+
+    foreach ($slots as $slot => $count) {
+        if ($slot === 'FLEX') {
+            continue;
+        }
+
+        $eligible = array_filter($scored, function ($player) use ($slot, $usedIds) {
+            return !in_array($player['id'], $usedIds, true) && strtoupper($player['position'] ?? '') === $slot;
+        });
+
+        $eligible = array_slice(array_values($eligible), 0, $count);
+        foreach ($eligible as $player) {
+            $player['slot'] = $slot;
+            $starters[] = $player;
+            $usedIds[] = $player['id'];
+        }
+    }
+
+    $flexEligible = array_filter($scored, function ($player) use ($usedIds) {
+        $pos = strtoupper($player['position'] ?? '');
+        return !in_array($player['id'], $usedIds, true) && in_array($pos, ['RB', 'WR', 'TE']);
+    });
+
+    if (count($flexEligible)) {
+        $flexPlayer = array_values($flexEligible)[0];
+        $flexPlayer['slot'] = 'FLEX';
+        $starters[] = $flexPlayer;
+        $usedIds[] = $flexPlayer['id'];
+    }
+
+    $bench = array_values(array_filter($scored, function ($player) use ($usedIds) {
+        return !in_array($player['id'], $usedIds, true);
+    }));
+
+    return [
+        'starters' => $starters,
+        'bench' => $bench,
+    ];
+}
+
 function fetchUserById($id, $conn)
 {
     $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group FROM users WHERE id = ?");
@@ -156,6 +386,104 @@ function loadTeams($conn)
     }
 
     return $teams;
+}
+
+function resolveRosterParams()
+{
+    $raw = $_GET['roster'] ?? ($_GET['roster_url'] ?? '');
+    [$rosterId, $leagueId] = parseRosterSource($raw);
+
+    if (!$rosterId && isset($_SESSION['sleeper_roster_id'])) {
+        $rosterId = $_SESSION['sleeper_roster_id'];
+        $leagueId = $_SESSION['sleeper_league_id'] ?? null;
+    }
+
+    return [$rosterId, $leagueId, $raw];
+}
+
+// ----------------------------------------
+// LINEUP: Sleeper Roster speichern/lesen
+// ----------------------------------------
+if ($path === "/lineup/source" && $_SERVER["REQUEST_METHOD"] === "GET") {
+    respond([
+        "roster_id" => $_SESSION['sleeper_roster_id'] ?? null,
+        "league_id" => $_SESSION['sleeper_league_id'] ?? null,
+    ]);
+}
+
+if ($path === "/lineup/source" && $_SERVER["REQUEST_METHOD"] === "POST") {
+    $raw = $input['roster'] ?? ($input['roster_url'] ?? '');
+    [$rosterId, $leagueId] = parseRosterSource($raw);
+
+    if (!$rosterId) {
+        respond(["error" => "Bitte eine gültige Sleeper-Roster-URL oder ID angeben."], 400);
+    }
+
+    $remember = !isset($input['remember']) || (bool)$input['remember'];
+    if ($remember) {
+        $_SESSION['sleeper_roster_id'] = $rosterId;
+        if ($leagueId) {
+            $_SESSION['sleeper_league_id'] = $leagueId;
+        }
+    }
+
+    respond([
+        "success" => true,
+        "roster_id" => $rosterId,
+        "league_id" => $leagueId,
+        "remembered" => $remember,
+    ]);
+}
+
+// ----------------------------------------
+// LINEUP: Roster abrufen
+// ----------------------------------------
+if ($path === "/lineup/roster" && $_SERVER["REQUEST_METHOD"] === "GET") {
+    [$rosterId, $leagueId, $raw] = resolveRosterParams();
+    if (!$rosterId) {
+        respond(["error" => "Keine Roster-ID gefunden. Bitte URL/ID angeben oder speichern."], 400);
+    }
+
+    [$roster, $err] = fetchSleeperRoster($rosterId, $leagueId);
+    if ($err || !$roster) {
+        respond(["error" => $err ?: "Roster konnte nicht geladen werden."], 502);
+    }
+
+    $players = resolveRosterPlayers($roster, $leagueId);
+
+    respond([
+        "roster_id" => $rosterId,
+        "league_id" => $leagueId,
+        "source" => $raw,
+        "players" => $players,
+    ]);
+}
+
+// ----------------------------------------
+// LINEUP: Empfehlungen
+// ----------------------------------------
+if ($path === "/lineup/recommendations" && $_SERVER["REQUEST_METHOD"] === "GET") {
+    [$rosterId, $leagueId, $raw] = resolveRosterParams();
+    if (!$rosterId) {
+        respond(["error" => "Keine Roster-ID gefunden. Bitte URL/ID angeben oder speichern."], 400);
+    }
+
+    [$roster, $err] = fetchSleeperRoster($rosterId, $leagueId);
+    if ($err || !$roster) {
+        respond(["error" => $err ?: "Roster konnte nicht geladen werden."], 502);
+    }
+
+    $players = resolveRosterPlayers($roster, $leagueId);
+    $lineup = buildRecommendation($players);
+
+    respond([
+        "roster_id" => $rosterId,
+        "league_id" => $leagueId,
+        "source" => $raw,
+        "players" => $players,
+        "starters" => $lineup['starters'],
+        "bench" => $lineup['bench'],
+    ]);
 }
 
 // ----------------------------------------
