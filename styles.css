@@ -1205,43 +1205,46 @@ footer {
 }
 
 /* --- SCOREBOARD GLOBAL --- */
+
 .scoreboard-matrix {
-  --col-gap: 10px;
-  --row-gap: 5px;
-  margin-top: 16px;
+  --col-gap: 6px;
+  --row-gap: 2px;
+  margin-top: 12px;
 }
 
 /* Division Banner */
-.division-banner {
-  background: linear-gradient(90deg, #102040, #1c335c);
+.division-ribbon {
+  align-self: stretch;
+  background: linear-gradient(180deg, #102040, #1c335c);
   color: #fff;
-  padding: 8px 14px;
-  border-radius: 8px;
-  margin: 18px 0 12px;
+  padding: 10px 6px;
+  border-radius: 12px;
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 700;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.08em;
+  text-align: center;
 }
 
-.division-banner--afc {
-  background: linear-gradient(90deg, #8b1f1f, #b83232);
+.division-ribbon__conf {
+  font-size: 11px;
+  opacity: 0.75;
 }
 
-.division-banner--nfc {
-  background: linear-gradient(90deg, #0a3d7a, #1564b0);
+.division-ribbon__div {
+  font-size: 13px;
 }
 
-/* Banner Text */
-.division-banner .banner-conf {
-  font-size: 0.85rem;
-  opacity: 0.9;
+.division-ribbon--afc {
+  background: linear-gradient(180deg, #8b1f1f, #b83232);
 }
 
-.division-banner .banner-div {
-  font-size: 1rem;
+.division-ribbon--nfc {
+  background: linear-gradient(180deg, #0a3d7a, #1564b0);
 }
 
 /* --- GRID LAYOUT --- */
@@ -1256,7 +1259,7 @@ footer {
   display: grid;
   grid-template-columns: var(--scoreboard-columns);
   gap: var(--col-gap);
-  padding: 4px 4px 8px;
+  padding: 2px 2px 6px;
   align-items: stretch;
   min-width: var(--scoreboard-min-width, 680px);
 }
@@ -1265,31 +1268,45 @@ footer {
   display: grid;
   grid-template-columns: var(--scoreboard-columns);
   gap: var(--col-gap);
-  padding: 6px 4px;
+  padding: 4px 2px;
   align-items: stretch;
   min-width: var(--scoreboard-min-width, 680px);
+}
+
+.scoreboard--with-ribbon {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.scoreboard__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
 }
 
 /* ACTUAL STANDINGS CELL */
 .cell-standings {
   background: #f6f7f9;
-  padding: 8px 9px;
-  border-radius: 10px;
+  padding: 6px 7px;
+  border-radius: 8px;
 }
 
 /* USER PREDICTION CELL */
 .prediction-compact {
-  background: #ffffff;
-  padding: 8px 9px;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: 6px;
+  box-shadow: none;
+  border: 1px solid var(--gray-100);
 }
 
 /* TEAM NAME + LOGO INLINE */
 .scoreboard__team-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   font-weight: 600;
 }
 
@@ -1305,15 +1322,15 @@ footer {
 
 /* RECORD UND PUNKTE */
 .scoreboard__record {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #4b5563;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .team-points {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  margin-top: 4px;
+  margin-top: 0;
   color: #1e3a8a;
 }
 
