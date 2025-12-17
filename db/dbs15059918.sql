@@ -180,7 +180,6 @@ CREATE TABLE `users` (
   `password_hash` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
   `role` varchar(50) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'user',
   `favorite_team` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `avatar_url` varchar(500) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -210,7 +209,6 @@ CREATE TABLE IF NOT EXISTS `seasons` (
   `season` varchar(10) COLLATE utf8mb4_general_ci NOT NULL,
   `label` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `lock_date` datetime DEFAULT NULL,
-  `is_closed` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`season`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -218,10 +216,10 @@ CREATE TABLE IF NOT EXISTS `seasons` (
 -- Daten für Tabelle `seasons`
 --
 
-INSERT INTO `seasons` (`season`, `label`, `lock_date`, `is_closed`) VALUES
-('2024', 'Saison 2024/2025 (abgeschlossen)', '2024-09-01 12:00:00', 1),
-('2025', 'Saison 2025/2026', '2025-09-01 12:00:00', 0)
-ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `lock_date` = VALUES(`lock_date`), `is_closed` = VALUES(`is_closed`);
+INSERT INTO `seasons` (`season`, `label`, `lock_date`) VALUES
+('2024', 'Saison 2024/2025 (abgeschlossen)', '2024-09-01 12:00:00'),
+('2025', 'Saison 2025/2026', '2025-09-01 12:00:00')
+ON DUPLICATE KEY UPDATE `label` = VALUES(`label`), `lock_date` = VALUES(`lock_date`);
 
 -- --------------------------------------------------------
 

@@ -41,20 +41,6 @@ if ($conn->connect_error) {
     exit;
 }
 
-function ensureColumnExists($conn, $table, $column, $definition)
-{
-    $stmt = $conn->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-    $stmt->bind_param("s", $column);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($result->num_rows === 0) {
-        $conn->query("ALTER TABLE `$table` ADD COLUMN `$column` $definition");
-    }
-}
-
-ensureColumnExists($conn, 'seasons', 'is_closed', "TINYINT(1) NOT NULL DEFAULT 0");
-ensureColumnExists($conn, 'users', 'avatar_url', "VARCHAR(500) NULL");
-
 // ----------------------------------------
 // JSON Body einlesen
 // ----------------------------------------
@@ -82,7 +68,7 @@ function respond($data, $code = 200) {
 
 function fetchUserById($id, $conn)
 {
-    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group, avatar_url FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
     return $stmt->get_result()->fetch_assoc();
@@ -117,7 +103,7 @@ function requireAdmin($conn)
 
 function loadSeasons($conn)
 {
-    $result = $conn->query("SELECT season, label, lock_date, is_closed FROM seasons ORDER BY season ASC");
+    $result = $conn->query("SELECT season, label, lock_date FROM seasons ORDER BY season ASC");
     if (!$result) {
         respond(["error" => "Seasons konnten nicht geladen werden."], 500);
     }
@@ -139,7 +125,6 @@ function loadSeasons($conn)
             "season" => $row["season"],
             "label" => $row["label"],
             "lock_date" => $isoLockDate,
-            "is_closed" => (bool)$row["is_closed"],
         ];
     }
 
@@ -168,95 +153,6 @@ if ($path === "/metadata" && $_SERVER["REQUEST_METHOD"] === "GET") {
     $seasons = loadSeasons($conn);
     $teams = loadTeams($conn);
     respond(["seasons" => $seasons, "teams" => $teams]);
-}
-
-if ($path === "/metadata/seasons" && $_SERVER["REQUEST_METHOD"] === "POST") {
-    requireAdmin($conn);
-
-    $season = trim($input['season'] ?? '');
-    $labelInput = trim($input['label'] ?? '');
-    $lockDate = $input['lock_date'] ?? null;
-    $isClosed = isset($input['is_closed']) ? (int)(bool)$input['is_closed'] : 0;
-
-    if ($season === '') {
-        respond(["error" => "season ist erforderlich."], 400);
-    }
-
-    $lockDateDb = null;
-    if ($lockDate) {
-        try {
-            $dt = new DateTime($lockDate);
-            $lockDateDb = $dt->format('Y-m-d H:i:s');
-        } catch (Exception $e) {
-            respond(["error" => "Ungültiges Datumsformat."], 400);
-        }
-    }
-
-    $label = $labelInput === '' ? null : $labelInput;
-
-    $stmt = $conn->prepare("INSERT INTO seasons (season, label, lock_date, is_closed) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE label = VALUES(label), lock_date = VALUES(lock_date), is_closed = VALUES(is_closed)");
-    $stmt->bind_param("sssi", $season, $label, $lockDateDb, $isClosed);
-    $stmt->execute();
-
-    $seasons = loadSeasons($conn);
-    respond(["success" => true, "seasons" => $seasons]);
-}
-
-if (preg_match('/^\/metadata\/seasons\/([^\/]+)$/', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
-    requireAdmin($conn);
-    $season = $matches[1];
-    $label = isset($input['label']) ? trim($input['label']) : null;
-    if ($label !== null && $label === '') {
-        $label = null;
-    }
-    $isClosed = isset($input['is_closed']) ? (int)(bool)$input['is_closed'] : null;
-    $lockDate = $input['lock_date'] ?? null;
-
-    $fields = [];
-    $types = '';
-    $values = [];
-
-    if ($label !== null) {
-        $fields[] = "label = ?";
-        $types .= 's';
-        $values[] = $label;
-    }
-
-    if ($isClosed !== null) {
-        $fields[] = "is_closed = ?";
-        $types .= 'i';
-        $values[] = $isClosed;
-    }
-
-    if ($lockDate !== null) {
-        try {
-            $dt = new DateTime($lockDate);
-            $lockDate = $dt->format('Y-m-d H:i:s');
-        } catch (Exception $e) {
-            respond(["error" => "Ungültiges Datumsformat."], 400);
-        }
-        $fields[] = "lock_date = ?";
-        $types .= 's';
-        $values[] = $lockDate;
-    }
-
-    if (empty($fields)) {
-        respond(["error" => "Keine Änderungen übergeben."], 400);
-    }
-
-    $types .= 's';
-    $values[] = $season;
-    $sql = "UPDATE seasons SET " . implode(', ', $fields) . " WHERE season = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param($types, ...$values);
-    $stmt->execute();
-
-    if ($stmt->affected_rows === 0) {
-        respond(["error" => "Saison wurde nicht gefunden."], 404);
-    }
-
-    $seasons = loadSeasons($conn);
-    respond(["success" => true, "seasons" => $seasons]);
 }
 
 if (preg_match('/^\/metadata\/seasons\/([^\/]+)\/lock-date$/', $path, $matches) && $_SERVER["REQUEST_METHOD"] === "PUT") {
@@ -344,7 +240,7 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
         respond(["error" => "E-Mail und Passwort sind erforderlich"], 400);
     }
 
-    $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, role AS user_group, avatar_url FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, role AS user_group FROM users WHERE email = ?");
     $stmt->bind_param("s", $input["email"]);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -378,7 +274,7 @@ if ($path === "/auth/me") {
 
     $id = $_SESSION["user_id"];
 
-    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group, avatar_url FROM users WHERE id = ?");
+    $stmt = $conn->prepare("SELECT id, name, email, favorite_team, role AS user_group FROM users WHERE id = ?");
     $stmt->bind_param("i", $id);
     $stmt->execute();
 
@@ -417,52 +313,6 @@ if ($path === "/auth/profile" && $_SERVER["REQUEST_METHOD"] === "PUT") {
 
     $updatedUser = fetchUserById($userId, $conn);
 
-    respond(["success" => true, "user" => $updatedUser]);
-}
-
-if ($path === "/auth/avatar" && $_SERVER["REQUEST_METHOD"] === "POST") {
-    $user = requireLogin($conn);
-
-    if (!isset($_FILES['avatar'])) {
-        respond(["error" => "Keine Datei hochgeladen."], 400);
-    }
-
-    $file = $_FILES['avatar'];
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        respond(["error" => "Upload fehlgeschlagen."], 400);
-    }
-
-    $allowedTypes = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/gif' => 'gif', 'image/webp' => 'webp'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
-
-    if (!isset($allowedTypes[$mime])) {
-        respond(["error" => "Nur JPG, PNG, GIF oder WEBP sind erlaubt."], 400);
-    }
-
-    if ($file['size'] > 2 * 1024 * 1024) {
-        respond(["error" => "Datei zu groß (max. 2 MB)."], 400);
-    }
-
-    $ext = $allowedTypes[$mime];
-    $uploadDir = __DIR__ . '/uploads/avatars';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0775, true);
-    }
-
-    $filename = sprintf('%s-%s.%s', $user['id'], time(), $ext);
-    $targetPath = $uploadDir . '/' . $filename;
-    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-        respond(["error" => "Datei konnte nicht gespeichert werden."], 500);
-    }
-
-    $relativePath = '/uploads/avatars/' . $filename;
-    $stmt = $conn->prepare("UPDATE users SET avatar_url = ? WHERE id = ?");
-    $stmt->bind_param("si", $relativePath, $user['id']);
-    $stmt->execute();
-
-    $updatedUser = fetchUserById($user['id'], $conn);
     respond(["success" => true, "user" => $updatedUser]);
 }
 
@@ -524,11 +374,11 @@ if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
         $season = date("Y");
     }
 
-    $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.role AS user_group, u.avatar_url,
+    $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.role AS user_group,
       CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip
       FROM users u
       LEFT JOIN tips t ON u.id = t.user_id AND t.season = ?
-      GROUP BY u.id, u.name, u.email, u.favorite_team, u.role, u.avatar_url
+      GROUP BY u.id, u.name, u.email, u.favorite_team, u.role
       ORDER BY u.name ASC");
     $stmt->bind_param("s", $season);
     $stmt->execute();

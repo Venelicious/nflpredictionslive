@@ -48,7 +48,6 @@ function applyMetadata({ seasons = [], teams: teamList = [] } = {}) {
     AVAILABLE_SEASONS = seasons.map(item => ({
       value: item.season,
       label: item.label || `Saison ${item.season}`,
-      closed: Boolean(item.is_closed),
     }));
 
     DEFAULT_LOCK_DATES = seasons.reduce((acc, season) => {
@@ -97,12 +96,11 @@ function ensureApiAvailable() {
 
 const apiClient = {
   async request(path, options = {}) {
-        ensureApiAvailable();
-    const isFormData = options.body instanceof FormData;
+	ensureApiAvailable();
     const response = await fetch(`${API_BASE_URL}${path}`, {
       credentials: 'include',
       headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        'Content-Type': 'application/json',
         ...(options.headers || {}),
       },
       ...options,
@@ -145,18 +143,6 @@ const apiClient = {
       method: 'PUT',
       body: JSON.stringify({ lock_date: lockDate }),
     });
-  },
-  createSeason(payload) {
-    return this.request('/metadata/seasons', { method: 'POST', body: JSON.stringify(payload) });
-  },
-  updateSeason(season, payload) {
-    return this.request(`/metadata/seasons/${encodeURIComponent(season)}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-  },
-  uploadAvatar(formData) {
-    return this.request('/auth/avatar', { method: 'POST', body: formData });
   },
   listTips() {
     return this.request('/tips');
@@ -207,7 +193,6 @@ const auth = {
       ...existing,
       ...user,
       favorite: user.favorite_team ?? existing.favorite ?? user.favorite ?? '',
-      avatar: user.avatar_url || existing.avatar || user.avatar || '',
       role: (user.user_group || user.role || existing.role || 'user').toLowerCase(),
       predictionsBySeason,
     };
@@ -317,9 +302,6 @@ const elements = {
   profileEmail: document.getElementById('profileEmail'),
   profileFavorite: document.getElementById('profileFavorite'),
   profileStatus: document.getElementById('profileStatus'),
-  profileAvatar: document.getElementById('profileAvatar'),
-  profileAvatarPreview: document.getElementById('profileAvatarPreview'),
-  avatarStatus: document.getElementById('avatarStatus'),
   lockInfo: document.getElementById('lockInfo'),
   predictionsContent: document.getElementById('predictionsContent'),
   seasonPicker: document.getElementById('seasonPicker'),
@@ -343,15 +325,6 @@ const elements = {
   saveLockDate: document.getElementById('saveLockDate'),
   membersContent: document.getElementById('membersContent'),
   membersStatus: document.getElementById('membersStatus'),
-  adminTabLink: document.querySelector('.tab-link[data-tab="adminTab"]'),
-  adminTab: document.getElementById('adminTab'),
-  seasonForm: document.getElementById('seasonForm'),
-  seasonCode: document.getElementById('seasonCode'),
-  seasonLabel: document.getElementById('seasonLabel'),
-  seasonLockDate: document.getElementById('seasonLockDate'),
-  seasonCompleted: document.getElementById('seasonCompleted'),
-  seasonStatus: document.getElementById('seasonStatus'),
-  seasonList: document.getElementById('seasonList'),
 };
 
 function clamp(value, min, max) {
@@ -522,17 +495,6 @@ function renderTeamLabel(name) {
   return wrapper;
 }
 
-function updateAvatarPreview(url = '', fallbackLabel = '') {
-  if (!elements.profileAvatarPreview) return;
-  if (url) {
-    elements.profileAvatarPreview.style.backgroundImage = `url(${url})`;
-    elements.profileAvatarPreview.textContent = '';
-  } else {
-    elements.profileAvatarPreview.style.backgroundImage = 'none';
-    elements.profileAvatarPreview.textContent = (fallbackLabel || '?').charAt(0).toUpperCase();
-  }
-}
-
 function populateTeamSelect() {
   if (!elements.profileFavorite) return;
   elements.profileFavorite.innerHTML = '';
@@ -640,13 +602,11 @@ function updateAuthUI() {
   if (loggedIn) {
     showAuth('');
     const user = auth.getUser(current);
-    toggleAdminVisibility(user);
     elements.welcomeName.textContent = user?.name || '';
     elements.welcomeEmail.textContent = user?.email || '';
     elements.profileName.value = user?.name || '';
     elements.profileEmail.value = user?.email || '';
     elements.profileFavorite.value = user?.favorite || '';
-    updateAvatarPreview(user?.avatar, user?.name || user?.email || '');
     if (elements.seasonPicker) {
       elements.seasonPicker.value = predictionSeason;
     }
@@ -664,8 +624,6 @@ function updateAuthUI() {
     applyLockDatePermission(null);
     refreshCoPlayerSelect();
     updateOverviewAccess();
-    toggleAdminVisibility(null);
-    updateAvatarPreview('', '');
   }
 }
 
@@ -1024,20 +982,6 @@ function isAdmin(user) {
   return (user?.role || '').toLowerCase() === 'admin';
 }
 
-function toggleAdminVisibility(user) {
-  const admin = isAdmin(user);
-  if (elements.adminTabLink) {
-    elements.adminTabLink.classList.toggle('hidden', !admin);
-  }
-  if (elements.adminTab) {
-    elements.adminTab.classList.toggle('hidden', !admin);
-  }
-
-  if (!admin && elements.adminTab?.classList.contains('active')) {
-    switchTab('profileTab');
-  }
-}
-
 function renderRoleBadge(role) {
   const span = document.createElement('span');
   span.className = 'role-badge';
@@ -1083,18 +1027,9 @@ function renderMembersTable(users = [], season = predictionSeason) {
     const identity = document.createElement('div');
     identity.className = 'member-card__identity';
 
-    let avatar;
-    if (user.avatar_url) {
-      avatar = document.createElement('img');
-      avatar.src = user.avatar_url;
-      avatar.alt = `${user.name || user.email || 'Avatar'}`;
-      avatar.className = 'members-avatar';
-      avatar.loading = 'lazy';
-    } else {
-      avatar = document.createElement('span');
-      avatar.className = 'members-avatar';
-      avatar.textContent = (user.name || user.email || '?').charAt(0).toUpperCase();
-    }
+    const avatar = document.createElement('span');
+    avatar.className = 'members-avatar';
+    avatar.textContent = (user.name || user.email || '?').charAt(0).toUpperCase();
 
     const meta = document.createElement('div');
     meta.className = 'members-meta';
@@ -1240,95 +1175,6 @@ async function handleLockDateSave() {
   }
 }
 
-async function reloadMetadata() {
-  await loadMetadata();
-  populateSeasonPicker();
-  populateLockSeasonSelect();
-  updateLockDateForm();
-  updateLockInfo();
-}
-
-async function handleSeasonCreate(event) {
-  event.preventDefault();
-  const user = auth.getUser(auth.currentUser);
-  if (!isAdmin(user)) {
-    setStatus(elements.seasonStatus, 'Keine Berechtigung.', 'error');
-    return;
-  }
-  const season = elements.seasonCode.value.trim();
-  if (!season) {
-    setStatus(elements.seasonStatus, 'Bitte eine Saison angeben.', 'error');
-    return;
-  }
-  const label = elements.seasonLabel.value.trim();
-  const lockDateRaw = elements.seasonLockDate.value;
-  const isClosed = elements.seasonCompleted.checked;
-  const payload = { season, label: label || null, is_closed: isClosed };
-  if (lockDateRaw) {
-    payload.lock_date = new Date(lockDateRaw).toISOString();
-  }
-  try {
-    await apiClient.createSeason(payload);
-    setStatus(elements.seasonStatus, 'Saison gespeichert.', 'success');
-    elements.seasonForm.reset();
-    await reloadMetadata();
-    renderSeasonList();
-  } catch (err) {
-    setStatus(elements.seasonStatus, err.message || 'Saison konnte nicht gespeichert werden.', 'error');
-  }
-}
-
-async function toggleSeasonCompletion(season, closed) {
-  const user = auth.getUser(auth.currentUser);
-  if (!isAdmin(user)) {
-    setStatus(elements.seasonStatus, 'Keine Berechtigung.', 'error');
-    return;
-  }
-  try {
-    await apiClient.updateSeason(season, { is_closed: closed });
-    await reloadMetadata();
-    renderSeasonList();
-    setStatus(elements.seasonStatus, 'Status aktualisiert.', 'success');
-  } catch (err) {
-    setStatus(elements.seasonStatus, err.message || 'Status konnte nicht geändert werden.', 'error');
-  }
-}
-
-function renderSeasonList() {
-  if (!elements.seasonList) return;
-  elements.seasonList.innerHTML = '';
-  if (!AVAILABLE_SEASONS.length) {
-    elements.seasonList.innerHTML = '<p class="empty">Keine Saisons verfügbar.</p>';
-    return;
-  }
-
-  AVAILABLE_SEASONS.forEach(season => {
-    const row = document.createElement('div');
-    row.className = 'season-list__item';
-
-    const meta = document.createElement('div');
-    meta.className = 'season-list__meta';
-    const label = document.createElement('span');
-    label.className = 'season-list__label';
-    label.textContent = season.label || `Saison ${season.value}`;
-    const status = document.createElement('span');
-    status.className = 'season-list__status';
-    status.textContent = season.closed ? 'Abgeschlossen' : 'Offen';
-    meta.appendChild(label);
-    meta.appendChild(status);
-
-    const action = document.createElement('button');
-    action.type = 'button';
-    action.className = 'secondary';
-    action.textContent = season.closed ? 'Wieder öffnen' : 'Abschließen';
-    action.addEventListener('click', () => toggleSeasonCompletion(season.value, !season.closed));
-
-    row.appendChild(meta);
-    row.appendChild(action);
-    elements.seasonList.appendChild(row);
-  });
-}
-
 function handleSeasonChange(event) {
   predictionSeason = event.target.value;
   localStorage.setItem(PREDICTION_SEASON_KEY, predictionSeason);
@@ -1431,30 +1277,6 @@ async function handleProfileSubmit(event) {
   } catch (err) {
     elements.profileStatus.textContent = err.message || 'Profil konnte nicht aktualisiert werden.';
     elements.profileStatus.className = 'status error';
-  }
-}
-
-async function handleAvatarUpload(event) {
-  const file = event.target.files?.[0];
-  const user = auth.getUser(auth.currentUser);
-  if (!file || !user) return;
-  const maxSize = 2 * 1024 * 1024;
-  if (file.size > maxSize) {
-    elements.avatarStatus.textContent = 'Das Bild ist größer als 2 MB.';
-    elements.avatarStatus.className = 'status error';
-    return;
-  }
-  const formData = new FormData();
-  formData.append('avatar', file);
-  try {
-    const { user: updatedUser } = await apiClient.uploadAvatar(formData);
-    auth.mergeUser(updatedUser);
-    updateAvatarPreview(updatedUser.avatar_url, updatedUser.name || updatedUser.email || '');
-    elements.avatarStatus.textContent = 'Avatar aktualisiert';
-    elements.avatarStatus.className = 'status success';
-  } catch (err) {
-    elements.avatarStatus.textContent = err.message || 'Avatar konnte nicht gespeichert werden.';
-    elements.avatarStatus.className = 'status error';
   }
 }
 
@@ -2159,7 +1981,6 @@ function setupEvents() {
     showAuth('login');
   });
   elements.profileForm.addEventListener('submit', handleProfileSubmit);
-  elements.profileAvatar?.addEventListener('change', handleAvatarUpload);
   elements.savePredictions.addEventListener('click', savePredictions);
   elements.lockSeasonSelect?.addEventListener('change', updateLockDateForm);
   elements.saveLockDate?.addEventListener('click', handleLockDateSave);
@@ -2179,7 +2000,6 @@ function setupEvents() {
   elements.seasonPicker?.addEventListener('change', handleSeasonChange);
   elements.exportCsv?.addEventListener('click', handleOverviewExport);
   elements.exportPdf?.addEventListener('click', handleOverviewPdfExport);
-  elements.seasonForm?.addEventListener('submit', handleSeasonCreate);
 }
 
 async function init() {
@@ -2187,7 +2007,6 @@ async function init() {
   populateTeamSelect();
   populateSeasonPicker();
   populateLockSeasonSelect();
-  renderSeasonList();
   showAuth('login');
   setupEvents();
   await auth.init();

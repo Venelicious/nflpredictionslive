@@ -294,7 +294,6 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   color: #fff;
   background: linear-gradient(135deg, #1f2a44, #3a4b6f);
   box-shadow: 0 6px 14px rgba(12, 16, 32, 0.2);
-  object-fit: cover;
 }
 
 .members-meta {
@@ -339,70 +338,6 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .status-chip__icon {
   font-weight: 800;
-}
-
-.avatar-upload {
-  display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 12px;
-  align-items: center;
-}
-
-.avatar-upload__preview {
-  width: 88px;
-  height: 88px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #1f2a44, #3a4b6f);
-  box-shadow: 0 6px 16px rgba(12, 16, 32, 0.25);
-  background-size: cover;
-  background-position: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 800;
-  font-size: 24px;
-  overflow: hidden;
-}
-
-.avatar-upload__controls input[type="file"] {
-  width: 100%;
-}
-
-.season-list {
-  margin-top: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.season-list__item {
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: #fff;
-}
-
-.season-list__meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.season-list__label {
-  font-weight: 700;
-}
-
-.season-list__status {
-  font-size: 12px;
-  color: var(--gray-500);
-}
-
-.stacked-form .form-row {
-  margin-bottom: 8px;
 }
 
 .member-card__role {
