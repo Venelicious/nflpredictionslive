@@ -11,6 +11,7 @@ let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || '';
 let teamLogos = {};
 
 let teams = [];
+let cachedUsers = [];
 
 function buildTeamNameLookup(list) {
   return list.reduce((acc, team) => {
@@ -355,6 +356,10 @@ const elements = {
   seasonFormStatus: document.getElementById('seasonFormStatus'),
   adminSeasonList: document.getElementById('adminSeasonList'),
   adminStatus: document.getElementById('adminStatus'),
+  roleForm: document.getElementById('roleForm'),
+  roleUserSelect: document.getElementById('roleUserSelect'),
+  roleValueSelect: document.getElementById('roleValueSelect'),
+  roleStatus: document.getElementById('roleStatus'),
 };
 
 function clamp(value, min, max) {
@@ -403,6 +408,24 @@ function defaultPredictions() {
 
 function sortByName(list) {
   return [...list].sort((a, b) => {
+    const nameA = (a?.name || a?.email || '').toLowerCase();
+    const nameB = (b?.name || b?.email || '').toLowerCase();
+    return nameA.localeCompare(nameB, 'de');
+  });
+}
+
+function getUserRole(user) {
+  const value = user?.role || user?.user_group || 'user';
+  return typeof value === 'string' ? value.trim().toLowerCase() : 'user';
+}
+
+function sortUsersByRole(users = []) {
+  const roleRank = role => (role === 'admin' ? 0 : 1);
+  return [...users].sort((a, b) => {
+    const roleA = getUserRole(a);
+    const roleB = getUserRole(b);
+    const rankDiff = roleRank(roleA) - roleRank(roleB);
+    if (rankDiff !== 0) return rankDiff;
     const nameA = (a?.name || a?.email || '').toLowerCase();
     const nameB = (b?.name || b?.email || '').toLowerCase();
     return nameA.localeCompare(nameB, 'de');
@@ -1029,7 +1052,7 @@ function updateLockInfo() {
 }
 
 function isAdmin(user) {
-  return (user?.role || '').trim().toLowerCase() === 'admin';
+  return getUserRole(user) === 'admin';
 }
 
 function renderRoleBadge(role) {
@@ -1039,25 +1062,8 @@ function renderRoleBadge(role) {
   return span;
 }
 
-async function handleRoleChange(userId, roleSelect) {
-  if (!roleSelect) return;
-  const newRole = roleSelect.value;
-  roleSelect.disabled = true;
-  setStatus(elements.membersStatus, 'Rolle wird aktualisiert …', '');
-  try {
-    await apiClient.updateUserRole(userId, newRole);
-    setStatus(elements.membersStatus, 'Rolle gespeichert.', 'success');
-    await loadMembers();
-  } catch (err) {
-    setStatus(elements.membersStatus, err.message || 'Rolle konnte nicht gespeichert werden.', 'error');
-  } finally {
-    roleSelect.disabled = false;
-  }
-}
-
 function renderMembersTable(users = [], season = predictionSeason) {
   if (!elements.membersContent) return;
-  const admin = isAdmin(auth.getUser(auth.currentUser));
 
   if (!users.length) {
     elements.membersContent.innerHTML = '<p class="empty">Keine Mitglieder gefunden.</p>';
@@ -1067,7 +1073,9 @@ function renderMembersTable(users = [], season = predictionSeason) {
   const grid = document.createElement('div');
   grid.className = 'members-grid';
 
-  users.forEach(user => {
+  const sortedUsers = sortUsersByRole(users);
+
+  sortedUsers.forEach(user => {
     const card = document.createElement('article');
     card.className = 'member-card';
 
@@ -1109,30 +1117,14 @@ function renderMembersTable(users = [], season = predictionSeason) {
 
     const roleWrapper = document.createElement('div');
     roleWrapper.className = 'member-card__role';
-    const role = (user.role || user.user_group || 'user').toLowerCase();
+    const role = getUserRole(user);
     const roleLabel = document.createElement('span');
     roleLabel.className = 'hint';
     roleLabel.textContent = 'Rolle';
 
-    if (admin) {
-      const select = document.createElement('select');
-      select.className = 'members-role-select';
-      select.innerHTML = `
-        <option value="user">User</option>
-        <option value="admin">Admin</option>
-      `;
-      select.value = role;
-      select.addEventListener('change', () => handleRoleChange(user.id, select));
-      if (user.email === auth.currentUser) {
-        select.disabled = true;
-      }
-      roleWrapper.appendChild(roleLabel);
-      roleWrapper.appendChild(select);
-    } else {
-      const roleBadge = renderRoleBadge(role);
-      roleWrapper.appendChild(roleLabel);
-      roleWrapper.appendChild(roleBadge);
-    }
+    const roleBadge = renderRoleBadge(role);
+    roleWrapper.appendChild(roleLabel);
+    roleWrapper.appendChild(roleBadge);
 
     card.appendChild(header);
     card.appendChild(roleWrapper);
@@ -1143,16 +1135,104 @@ function renderMembersTable(users = [], season = predictionSeason) {
   elements.membersContent.appendChild(grid);
 }
 
+function syncSelectedRoleOption() {
+  if (!elements.roleUserSelect || !elements.roleValueSelect) return;
+  const selectedId = Number(elements.roleUserSelect.value);
+  const selectedUser = cachedUsers.find(user => user.id === selectedId);
+  elements.roleValueSelect.value = getUserRole(selectedUser);
+}
+
+function renderRoleManagement(users = []) {
+  if (!elements.roleUserSelect || !elements.roleValueSelect) return;
+  cachedUsers = Array.isArray(users) ? users : [];
+  const admin = isAdmin(auth.getUser(auth.currentUser));
+
+  elements.roleForm?.classList.toggle('hidden', !admin);
+
+  if (!admin) {
+    elements.roleUserSelect.innerHTML = '';
+    setStatus(elements.roleStatus, 'Keine Berechtigung: Nur Admins dürfen Rollen ändern.', 'error');
+    return;
+  }
+
+  const hasUsers = cachedUsers.length > 0;
+  if (!hasUsers) {
+    elements.roleUserSelect.innerHTML = '';
+    setStatus(elements.roleStatus, 'Keine Benutzer verfügbar.', '');
+    return;
+  }
+
+  const sortedUsers = sortUsersByRole(cachedUsers);
+  const currentUser = auth.getUser(auth.currentUser);
+  elements.roleUserSelect.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Benutzer auswählen';
+  elements.roleUserSelect.appendChild(placeholder);
+
+  sortedUsers.forEach(user => {
+    const option = document.createElement('option');
+    option.value = user.id;
+    const role = getUserRole(user);
+    option.textContent = `${user.name || user.email || 'Unbekannt'} (${role === 'admin' ? 'Admin' : 'User'})`;
+    option.disabled = currentUser?.email === user.email;
+    elements.roleUserSelect.appendChild(option);
+  });
+
+  const firstEnabled = Array.from(elements.roleUserSelect.options).find(option => !option.disabled && option.value);
+  elements.roleUserSelect.value = firstEnabled?.value || '';
+  syncSelectedRoleOption();
+  setStatus(elements.roleStatus, '', '');
+}
+
 async function loadMembers() {
   if (!elements.membersContent || !auth.currentUser) return;
   setStatus(elements.membersStatus, 'Mitglieder werden geladen …', '');
   try {
     const { users } = await apiClient.listUsers(predictionSeason);
-    renderMembersTable(users, predictionSeason);
+    cachedUsers = Array.isArray(users) ? users : [];
+    renderMembersTable(cachedUsers, predictionSeason);
+    renderRoleManagement(cachedUsers);
     setStatus(elements.membersStatus, '', '');
   } catch (err) {
+    cachedUsers = [];
     renderMembersTable([]);
+    renderRoleManagement([]);
     setStatus(elements.membersStatus, err.message || 'Mitglieder konnten nicht geladen werden.', 'error');
+  }
+}
+
+async function handleRoleFormSubmit(event) {
+  event.preventDefault();
+  if (!elements.roleForm || !elements.roleUserSelect || !elements.roleValueSelect) return;
+
+  const currentUser = auth.getUser(auth.currentUser);
+  if (!isAdmin(currentUser)) {
+    setStatus(elements.roleStatus, 'Keine Berechtigung: Nur Admins dürfen Rollen ändern.', 'error');
+    return;
+  }
+
+  const userId = Number(elements.roleUserSelect.value);
+  const newRole = elements.roleValueSelect.value;
+
+  if (!userId) {
+    setStatus(elements.roleStatus, 'Bitte einen Benutzer auswählen.', 'error');
+    return;
+  }
+
+  const controls = elements.roleForm.querySelectorAll('button, select');
+  controls.forEach(control => (control.disabled = true));
+  setStatus(elements.roleStatus, 'Rolle wird aktualisiert …', '');
+
+  try {
+    await apiClient.updateUserRole(userId, newRole);
+    setStatus(elements.roleStatus, 'Rolle gespeichert.', 'success');
+    await loadMembers();
+  } catch (err) {
+    setStatus(elements.roleStatus, err.message || 'Rolle konnte nicht gespeichert werden.', 'error');
+  } finally {
+    controls.forEach(control => (control.disabled = false));
   }
 }
 
@@ -2195,6 +2275,8 @@ function setupEvents() {
   elements.exportCsv?.addEventListener('click', handleOverviewExport);
   elements.exportPdf?.addEventListener('click', handleOverviewPdfExport);
   elements.seasonForm?.addEventListener('submit', handleSeasonCreate);
+  elements.roleUserSelect?.addEventListener('change', syncSelectedRoleOption);
+  elements.roleForm?.addEventListener('submit', handleRoleFormSubmit);
 }
 
 async function init() {
