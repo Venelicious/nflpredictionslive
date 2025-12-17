@@ -1962,7 +1962,19 @@ function renderLineupTable(container, players, emptyText) {
 
     const score = document.createElement('div');
     score.className = 'lineup-row__score';
-    score.textContent = typeof player.score === 'number' ? `${player.score.toFixed(1)} pts` : '–';
+    const evalScore = typeof player.score === 'number' ? `${player.score.toFixed(1)} pts` : '–';
+    score.textContent = evalScore;
+
+    if (typeof player.projection_score === 'number') {
+      const projection = document.createElement('div');
+      projection.className = 'lineup-row__projection';
+      const percentile =
+        typeof player.projection_percentile === 'number'
+          ? ` (${player.projection_percentile.toFixed(0)}. Perzentil)`
+          : '';
+      projection.textContent = `Sleeper-Projektion: ${player.projection_score.toFixed(2)} pts${percentile}`;
+      score.appendChild(projection);
+    }
 
     const reasons = document.createElement('ul');
     reasons.className = 'lineup-row__reasons';

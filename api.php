@@ -406,6 +406,8 @@ function scorePlayer($player)
     $projectionLookup = buildProjectionLookup();
     $projectionData = $projectionLookup['by_player'][(string)$player['id']] ?? null;
     $currentWeek = fetchCurrentNflWeek();
+    $projectionScore = null;
+    $projectionPercentile = null;
 
     if ($currentWeek && isset($player['bye_week']) && (int)$player['bye_week'] === (int)$currentWeek) {
         $score -= 8;
@@ -414,9 +416,11 @@ function scorePlayer($player)
 
     if ($projectionData) {
         $projScore = $projectionData['score'];
+        $projectionScore = round($projScore, 2);
         $positionScores = $projectionLookup['position_scores'][$position] ?? [];
         $percentile = percentileRank($positionScores, $projScore);
         if ($percentile !== null) {
+            $projectionPercentile = round($percentile * 100, 1);
             $percentBonus = round(($percentile - 0.5) * 8, 2); // approximately -4 to +4
             $projectionWeight = round($projScore * 0.25, 2); // direkte Punkte aus Projection stärker gewichten
 
@@ -439,6 +443,8 @@ function scorePlayer($player)
     return [
         'score' => round($score, 2),
         'reasons' => $reasons,
+        'projection_score' => $projectionScore,
+        'projection_percentile' => $projectionPercentile,
     ];
 }
 
@@ -459,6 +465,8 @@ function buildRecommendation($players)
         return array_merge($player, [
             'score' => $eval['score'],
             'reasons' => $eval['reasons'],
+            'projection_score' => $eval['projection_score'],
+            'projection_percentile' => $eval['projection_percentile'],
         ]);
     }, $players);
 

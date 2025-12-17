@@ -1449,6 +1449,12 @@ footer {
   text-align: right;
 }
 
+.lineup-row__projection {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
 .lineup-row__reasons {
   grid-column: 1 / -1;
   list-style: disc;
