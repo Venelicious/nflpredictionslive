@@ -11,13 +11,15 @@ error_reporting(E_ALL);
 // ----------------------------------------
 header("Content-Type: application/json; charset=UTF-8");
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-if ($origin) {
-    header("Access-Control-Allow-Origin: " . $origin);
-    header("Vary: Origin");
-    header("Access-Control-Allow-Credentials: true");
-} else {
-    header("Access-Control-Allow-Origin: *");
-}
+$isSecure = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off') || ($_SERVER['SERVER_PORT'] ?? null) === 443;
+$defaultOrigin = isset($_SERVER['HTTP_HOST'])
+    ? sprintf('%s://%s', $isSecure ? 'https' : 'http', $_SERVER['HTTP_HOST'])
+    : '*';
+
+$allowedOrigin = $origin ?: $defaultOrigin;
+header("Access-Control-Allow-Origin: " . $allowedOrigin);
+header("Vary: Origin");
+header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
 
@@ -49,6 +51,15 @@ $input = json_decode(file_get_contents("php://input"), true);
 // ----------------------------------------
 // Session starten
 // ----------------------------------------
+$cookieOptions = [
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => $_SERVER['HTTP_HOST'] ?? '',
+    'secure' => $isSecure,
+    'httponly' => true,
+    'samesite' => $isSecure ? 'None' : 'Lax',
+];
+session_set_cookie_params($cookieOptions);
 session_start();
 
 // ----------------------------------------
