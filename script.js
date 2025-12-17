@@ -1864,9 +1864,13 @@ function hasMeaningfulPredictions(predictions) {
 
 
 function getOverviewParticipants() {
-  return listParticipants().filter(player =>
-    hasMeaningfulPredictions(getParticipantPredictions(player))
-  );
+  return listParticipants().filter(player => {
+    const predictions = getParticipantPredictions(player);
+
+    if (player.has_tip) return true;
+
+    return hasMeaningfulPredictions(predictions);
+  });
 }
 
 function updateOverviewExportButtons(locked, participants) {
