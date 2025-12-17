@@ -2182,7 +2182,16 @@ function buildOverviewScoreboard(participants, options = {}) {
     headerRow.appendChild(cell);
   });
 
-  wrapper.appendChild(headerRow);
+  const headerWrapper = document.createElement('div');
+  headerWrapper.className = 'scoreboard scoreboard--with-ribbon scoreboard--header';
+
+  const ribbonPlaceholder = document.createElement('div');
+  ribbonPlaceholder.className = 'division-ribbon division-ribbon--placeholder';
+  ribbonPlaceholder.setAttribute('aria-hidden', 'true');
+  headerWrapper.appendChild(ribbonPlaceholder);
+
+  headerWrapper.appendChild(headerRow);
+  wrapper.appendChild(headerWrapper);
 
   const grid = document.createElement('div');
   grid.className = 'scoreboard-grid scoreboard-grid--matrix';

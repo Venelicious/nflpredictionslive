@@ -1239,6 +1239,15 @@ footer {
   font-size: 13px;
 }
 
+.division-ribbon--placeholder {
+  visibility: hidden;
+  min-height: 60px;
+}
+
+.scoreboard--header {
+  align-items: center;
+}
+
 .division-ribbon--afc {
   background: linear-gradient(180deg, #8b1f1f, #b83232);
 }
