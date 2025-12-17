@@ -494,8 +494,8 @@ if ($path === "/tips" && $_SERVER["REQUEST_METHOD"] === "POST") {
     $season = $input["season"];
     $payload = json_encode($input["payload"], JSON_UNESCAPED_UNICODE);
 
-    // REPLACE = bereits vorhandenen Eintrag überschreiben
-    $stmt = $conn->prepare("REPLACE INTO tips (user_id, season, payload) VALUES (?, ?, ?)");
+    // Bestehenden Eintrag (pro Season) aktualisieren statt neue Zeilen anzulegen
+    $stmt = $conn->prepare("INSERT INTO tips (user_id, season, payload) VALUES (?, ?, ?)\n        ON DUPLICATE KEY UPDATE payload = VALUES(payload), updated_at = CURRENT_TIMESTAMP");
     $stmt->bind_param("iss", $uid, $season, $payload);
     $stmt->execute();
 
