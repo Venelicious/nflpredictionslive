@@ -1,43 +1,73 @@
 """Thin wrappers around nflreadpy endpoints needed for lineup scoring."""
 from __future__ import annotations
 
-from typing import Any, Iterable, Tuple
+from typing import Any, Iterable, Mapping, Tuple
 
 import importlib.util
+import math
 
-if importlib.util.find_spec("pandas") is None:
-    raise ImportError(
-        "Missing dependency 'pandas'. Install via `pip install -r python_service/requirements.txt`."
-    )
+DEPENDENCY_HINT = "Install via `pip install -r python_service/requirements.txt`."
+NFLREADPY_DOCS = "\n".join(
+    [
+        "Bitte prüfe die nflreadpy Installation.",
+        "Beispiel: import nflreadpy as nfl; pbp = nfl.load_pbp().",
+        "Häufige load functions: load_pbp, load_player_stats, load_team_stats, load_schedules, load_players.",
+        "Weitere Funktionen: https://nflreadpy.nflverse.com/api/load_functions/.",
+        "Konfiguration: https://nflreadpy.nflverse.com/api/configuration/.",
+        "Caching: https://nflreadpy.nflverse.com/api/cache/.",
+        "Utilities: https://nflreadpy.nflverse.com/api/utils/.",
+    ]
+)
+
+
+def _raise_missing_dependency(module: str, extra: str | None = None) -> None:
+    """Raise an ImportError with clear installation instructions."""
+
+    message = f"Missing dependency '{module}'. {DEPENDENCY_HINT}"
+    if extra:
+        message = f"{message}\n{extra}"
+    raise ImportError(message)
+
+
+if importlib.util.find_spec("polars") is None:
+    _raise_missing_dependency("polars")
 
 if importlib.util.find_spec("nflreadpy") is None:
-    raise ImportError(
-        "Missing dependency 'nflreadpy'. Install via `pip install -r python_service/requirements.txt`."
-    )
+    _raise_missing_dependency("nflreadpy", extra=NFLREADPY_DOCS)
 
-import pandas as pd
+import polars as pl
 from nflreadpy import nflread as nfl
 
 
 DEFAULT_SEASON_TYPE = "regular"
 
 
-def load_ff_playerids() -> pd.DataFrame:
+def load_ff_playerids() -> pl.DataFrame:
     """Load nflverse fantasy player ids (ffid, gsis, sportradar, etc.)."""
 
-    return nfl.load_ff_playerids()
+    return nfl.load_ff_playerids(output_format="polars")
 
 
-def load_ff_rankings(season: int, week: int | None = None) -> pd.DataFrame:
+def load_ff_rankings(season: int, week: int | None = None) -> pl.DataFrame:
     """Load weekly fantasy rankings (projections) for a given season/week."""
 
-    return nfl.load_ff_rankings(season=season, week=week, season_type=DEFAULT_SEASON_TYPE)
+    return nfl.load_ff_rankings(
+        season=season,
+        week=week,
+        season_type=DEFAULT_SEASON_TYPE,
+        output_format="polars",
+    )
 
 
-def load_ff_opportunity(season: int, weeks: Iterable[int] | None = None) -> pd.DataFrame:
+def load_ff_opportunity(season: int, weeks: Iterable[int] | None = None) -> pl.DataFrame:
     """Load opportunity data (snaps, routes, targets, carries) for weeks."""
 
-    return nfl.load_ff_opportunity(season=season, weeks=weeks, season_type=DEFAULT_SEASON_TYPE)
+    return nfl.load_ff_opportunity(
+        season=season,
+        weeks=weeks,
+        season_type=DEFAULT_SEASON_TYPE,
+        output_format="polars",
+    )
 
 
 def _normalize_id(value: Any) -> str | None:
@@ -46,10 +76,7 @@ def _normalize_id(value: Any) -> str | None:
     if value is None:
         return None
 
-    if isinstance(value, float) and pd.isna(value):
-        return None
-
-    if pd.isna(value):
+    if isinstance(value, float) and math.isnan(value):
         return None
 
     if isinstance(value, float) and value.is_integer():
@@ -58,7 +85,7 @@ def _normalize_id(value: Any) -> str | None:
     return str(value).strip()
 
 
-def _build_sleeper_lookup(player_ids: pd.DataFrame) -> Tuple[dict[str, str], dict[str, str]]:
+def _build_sleeper_lookup(player_ids: pl.DataFrame) -> Tuple[dict[str, str], dict[str, str]]:
     """Create fast lookup maps (id -> sleeper_id, name -> sleeper_id)."""
 
     id_columns = [
@@ -80,7 +107,7 @@ def _build_sleeper_lookup(player_ids: pd.DataFrame) -> Tuple[dict[str, str], dic
     id_lookup: dict[str, str] = {}
     name_lookup: dict[str, str] = {}
 
-    for _, row in player_ids.iterrows():
+    for row in player_ids.iter_rows(named=True):
         sleeper_id = _normalize_id(row.get("sleeper_id"))
         if not sleeper_id:
             continue
@@ -97,7 +124,9 @@ def _build_sleeper_lookup(player_ids: pd.DataFrame) -> Tuple[dict[str, str], dic
     return id_lookup, name_lookup
 
 
-def _resolve_sleeper_id(row: pd.Series, id_lookup: dict[str, str], name_lookup: dict[str, str]) -> str | None:
+def _resolve_sleeper_id(
+    row: Mapping[str, Any], id_lookup: dict[str, str], name_lookup: dict[str, str]
+) -> str | None:
     """Best-effort mapping from nflverse projections to Sleeper player IDs."""
 
     candidate_keys = [
@@ -131,7 +160,7 @@ def _resolve_sleeper_id(row: pd.Series, id_lookup: dict[str, str], name_lookup: 
     return None
 
 
-def attach_lineup_scores(rankings: pd.DataFrame) -> pd.DataFrame:
+def attach_lineup_scores(rankings: pl.DataFrame) -> pl.DataFrame:
     """Add fantasy points based on existing scoring rules to ranking rows.
 
     The ranking rows are expected to contain position and common stat columns.
@@ -139,15 +168,14 @@ def attach_lineup_scores(rankings: pd.DataFrame) -> pd.DataFrame:
 
     from .scoring import calculate_fantasy_points, merge_projection_row
 
-    rankings = rankings.copy()
-    rankings["fantasy_points"] = rankings.apply(
-        lambda row: calculate_fantasy_points(merge_projection_row(row), row.get("pos", "")),
-        axis=1,
+    return rankings.with_columns(
+        pl.struct(pl.all()).map_elements(
+            lambda row: calculate_fantasy_points(merge_projection_row(row), row.get("pos", ""))
+        ).alias("fantasy_points")
     )
-    return rankings
 
 
-def summarize_lineup_projection(season: int, week: int | None = None) -> pd.DataFrame:
+def summarize_lineup_projection(season: int, week: int | None = None) -> pl.DataFrame:
     """Convenience pipeline: fetch rankings and annotate with scores."""
 
     rankings = load_ff_rankings(season=season, week=week)
@@ -162,7 +190,7 @@ def export_lineup_json(season: int, week: int | None = None) -> list[dict[str, A
     id_lookup, name_lookup = _build_sleeper_lookup(player_ids)
 
     records: list[dict[str, Any]] = []
-    for _, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         sleeper_id = _resolve_sleeper_id(row, id_lookup, name_lookup)
         record = {
             "player_id": _normalize_id(row.get("player_id")) or _normalize_id(row.get("gsis_id")),

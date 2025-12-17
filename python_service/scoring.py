@@ -86,9 +86,8 @@ def calculate_fantasy_points(stats: Mapping[str, float] | None, position: str) -
 def merge_projection_row(row: Mapping[str, float]) -> dict[str, float]:
     """Flatten nflverse projection rows to the stat keys the scorer expects.
 
-    This helper lets you pass pandas Series/Rows from `nflreadpy` outputs
-    (e.g., from `load_ff_opportunity` or `load_ff_rankings`) into
-    ``calculate_fantasy_points`` without manual renaming each time.
+    This helper lets you pass polars/nflreadpy rows into ``calculate_fantasy_points``
+    without manual renaming each time.
     """
 
     merged = {
