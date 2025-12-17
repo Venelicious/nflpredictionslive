@@ -206,6 +206,36 @@ function fetchSleeperProjections($week = null)
     return $cache[$weekKey];
 }
 
+function fetchNflverseLineupProjections($week = null, $season = null)
+{
+    static $cache = [];
+
+    $weekKey = $week ?: 'current';
+    if (array_key_exists($weekKey, $cache)) {
+        return $cache[$weekKey];
+    }
+
+    if ($week === null) {
+        $week = fetchCurrentNflWeek();
+    }
+
+    if ($season === null) {
+        $season = (int)date('Y');
+    }
+
+    $script = escapeshellarg(__DIR__ . '/python_service/export_lineup.py');
+    $seasonArg = escapeshellarg((string)$season);
+    $weekArg = $week ? ' --week ' . escapeshellarg((string)$week) : '';
+
+    $command = "python3 {$script} --season {$seasonArg}{$weekArg}";
+    $output = shell_exec($command);
+
+    $decoded = json_decode($output ?: '', true);
+    $cache[$weekKey] = is_array($decoded) ? $decoded : [];
+
+    return $cache[$weekKey];
+}
+
 function calculateProjectionFantasyPoints(array $projection, string $position)
 {
     $stats = $projection['stats'] ?? [];
@@ -277,15 +307,20 @@ function buildProjectionLookup($week = null)
         return $cache[$weekKey];
     }
 
-    $projections = fetchSleeperProjections($week);
+    $projections = fetchNflverseLineupProjections($week);
     $byPlayer = [];
     $positionScores = [];
 
-    foreach ($projections as $playerId => $projection) {
-        $position = strtoupper($projection['position'] ?? ($projection['fantasy_positions'][0] ?? ''));
-        $score = calculateProjectionFantasyPoints($projection, $position);
+    foreach ($projections as $projection) {
+        $playerId = (string)($projection['sleeper_id'] ?? $projection['player_id'] ?? '');
+        if (!$playerId) {
+            continue;
+        }
 
-        $byPlayer[(string)$playerId] = [
+        $position = strtoupper($projection['pos'] ?? ($projection['position'] ?? ($projection['fantasy_positions'][0] ?? '')));
+        $score = (float)($projection['fantasy_points'] ?? $projection['score'] ?? 0);
+
+        $byPlayer[$playerId] = [
             'position' => $position,
             'score' => $score,
             'projection' => $projection,
@@ -439,7 +474,7 @@ function scorePlayer($player)
 
         $averageScore = round(($score + $projectionScore) / 2, 2);
         $reasons[] = sprintf(
-            'Durchschnitt aus Score (%.2f) und Sleeper-Projektion (%.2f): %.2f',
+            'Durchschnitt aus Score (%.2f) und nflverse-Projektion (%.2f): %.2f',
             $score,
             $projectionScore,
             $averageScore
@@ -447,7 +482,7 @@ function scorePlayer($player)
     } else {
         $score -= 2;
         $reasons[] = 'Keine Projection gefunden (leichter Malus)';
-        $reasons[] = 'Durchschnitt entspricht aktuellem Score (keine Sleeper-Projektion verfügbar)';
+        $reasons[] = 'Durchschnitt entspricht aktuellem Score (keine nflverse-Projektion verfügbar)';
     }
 
     $averageScore = round($averageScore, 2);
