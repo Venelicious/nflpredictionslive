@@ -219,6 +219,19 @@ const auth = {
     };
     this.currentUserEmail = user.email;
   },
+  mergeUsersWithTips(users = [], season = predictionSeason) {
+    if (!Array.isArray(users)) return;
+    const activeEmail = this.currentUserEmail;
+    users.forEach(user => {
+      if (!user?.email) return;
+      const tipPayload = user.tip_payload || null;
+      const tipEntries = tipPayload ? [{ season, payload: tipPayload }] : [];
+      this.mergeUser(user, tipEntries);
+    });
+    if (activeEmail) {
+      this.currentUserEmail = activeEmail;
+    }
+  },
   get users() {
     return Object.values(this.profiles);
   },
@@ -1192,8 +1205,10 @@ async function loadMembers() {
   try {
     const { users } = await apiClient.listUsers(predictionSeason);
     cachedUsers = Array.isArray(users) ? users : [];
+    auth.mergeUsersWithTips(cachedUsers, predictionSeason);
     renderMembersTable(cachedUsers, predictionSeason);
     renderRoleManagement(cachedUsers);
+    renderPredictionsOverview();
     setStatus(elements.membersStatus, '', '');
   } catch (err) {
     cachedUsers = [];

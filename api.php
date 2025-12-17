@@ -478,10 +478,10 @@ if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
     }
 
     $stmt = $conn->prepare("SELECT u.id, u.name, u.email, u.favorite_team, u.role AS user_group,
-      CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip
+      CASE WHEN COUNT(t.id) > 0 THEN 1 ELSE 0 END AS has_tip, t.payload AS tip_payload
       FROM users u
       LEFT JOIN tips t ON u.id = t.user_id AND t.season = ?
-      GROUP BY u.id, u.name, u.email, u.favorite_team, u.role
+      GROUP BY u.id, u.name, u.email, u.favorite_team, u.role, t.payload
       ORDER BY u.name ASC");
     $stmt->bind_param("s", $season);
     $stmt->execute();
@@ -490,6 +490,7 @@ if ($path === "/users" && $_SERVER["REQUEST_METHOD"] === "GET") {
     $users = [];
     while ($row = $result->fetch_assoc()) {
         $row['has_tip'] = (bool)$row['has_tip'];
+        $row['tip_payload'] = $row['tip_payload'] ? json_decode($row['tip_payload'], true) : null;
         $users[] = $row;
     }
 
