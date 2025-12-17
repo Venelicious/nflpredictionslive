@@ -59,9 +59,6 @@ ensureColumnExists($conn, 'users', 'avatar_url', "VARCHAR(500) NULL");
 // JSON Body einlesen
 // ----------------------------------------
 $input = json_decode(file_get_contents("php://input"), true);
-if (!is_array($input)) {
-    $input = [];
-}
 
 // ----------------------------------------
 // Session starten
@@ -293,22 +290,17 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     global $conn, $input;
 
-    $email = trim($input["email"] ?? "");
-    $password = $input["password"] ?? "";
-    $name = trim($input["name"] ?? "");
-    $passwordConfirmation = $input["password_confirmation"] ?? "";
-
-    if (!$email || !$password || !$name || !$passwordConfirmation) {
+    if (!$input["email"] || !$input["password"] || !$input["name"] || !$input["password_confirmation"]) {
         respond(["error" => "Name, Email, Passwort und Passwortbestätigung sind erforderlich"], 400);
     }
 
-    if ($password !== $passwordConfirmation) {
+    if ($input["password"] !== $input["password_confirmation"]) {
         respond(["error" => "Passwörter stimmen nicht überein"], 400);
     }
 
     // Prüfen ob Nutzer existiert
     $stmt = $conn->prepare("SELECT id, email, name FROM users WHERE email = ? OR name = ?");
-    $stmt->bind_param("ss", $email, $name);
+    $stmt->bind_param("ss", $input["email"], $input["name"]);
     $stmt->execute();
     $res = $stmt->get_result();
 
@@ -323,11 +315,11 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
     }
 
     // Passwort hashen
-    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $hash = password_hash($input["password"], PASSWORD_BCRYPT);
 
     // Nutzer anlegen
     $stmt = $conn->prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'user')");
-    $stmt->bind_param("sss", $name, $email, $hash);
+    $stmt->bind_param("sss", $input["name"], $input["email"], $hash);
     $stmt->execute();
 
     $_SESSION["user_id"] = $stmt->insert_id;
@@ -348,15 +340,12 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     global $conn, $input;
 
-    $email = trim($input["email"] ?? "");
-    $password = $input["password"] ?? "";
-
-    if (!$email || !$password) {
+    if (!$input["email"] || !$input["password"]) {
         respond(["error" => "E-Mail und Passwort sind erforderlich"], 400);
     }
 
     $stmt = $conn->prepare("SELECT id, name, email, password_hash, favorite_team, role AS user_group, avatar_url FROM users WHERE email = ?");
-    $stmt->bind_param("s", $email);
+    $stmt->bind_param("s", $input["email"]);
     $stmt->execute();
     $res = $stmt->get_result();
 
@@ -366,7 +355,7 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
 
     $user = $res->fetch_assoc();
 
-    if (!password_verify($password, $user["password_hash"])) {
+    if (!password_verify($input["password"], $user["password_hash"])) {
         respond(["error" => "Anmeldung fehlgeschlagen"], 401);
     }
 
