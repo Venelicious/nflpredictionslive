@@ -436,16 +436,43 @@ if ($path === "/auth/profile" && $_SERVER["REQUEST_METHOD"] === "PUT") {
 // ----------------------------------------
 if ($path === "/tips" && $_SERVER["REQUEST_METHOD"] === "GET") {
 
+    $seasonFilter = $_GET['season'] ?? null;
+
+    if ($seasonFilter) {
+        $stmt = $conn->prepare("SELECT t.user_id, t.season, t.payload, u.name, u.email, u.favorite_team, u.role AS user_group FROM tips t LEFT JOIN users u ON u.id = t.user_id WHERE t.season = ? ORDER BY u.name ASC");
+        $stmt->bind_param("s", $seasonFilter);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $tips = [];
+        while ($row = $result->fetch_assoc()) {
+            $tips[] = [
+                "user_id" => (int) $row["user_id"],
+                "season" => $row["season"],
+                "payload" => json_decode($row["payload"], true),
+                "user_name" => $row["name"] ?? null,
+                "user_email" => $row["email"] ?? null,
+                "favorite_team" => $row["favorite_team"] ?? null,
+                "user_group" => $row["user_group"] ?? null,
+            ];
+        }
+
+        respond(["tips" => $tips]);
+    }
+
     if (!isset($_SESSION["user_id"])) {
         respond(["tips" => []]);
     }
 
     $uid = $_SESSION["user_id"];
 
-    $res = $conn->query("SELECT season, payload FROM tips WHERE user_id = $uid");
+    $res = $conn->prepare("SELECT season, payload FROM tips WHERE user_id = ?");
+    $res->bind_param("i", $uid);
+    $res->execute();
+    $result = $res->get_result();
 
     $tips = [];
-    while ($row = $res->fetch_assoc()) {
+    while ($row = $result->fetch_assoc()) {
         $row["payload"] = json_decode($row["payload"], true);
         $tips[] = $row;
     }
