@@ -408,6 +408,7 @@ function scorePlayer($player)
     $currentWeek = fetchCurrentNflWeek();
     $projectionScore = null;
     $projectionPercentile = null;
+    $averageScore = $score;
 
     if ($currentWeek && isset($player['bye_week']) && (int)$player['bye_week'] === (int)$currentWeek) {
         $score -= 8;
@@ -435,16 +436,28 @@ function scorePlayer($player)
                 $projectionWeight
             );
         }
+
+        $averageScore = round(($score + $projectionScore) / 2, 2);
+        $reasons[] = sprintf(
+            'Durchschnitt aus Score (%.2f) und Sleeper-Projektion (%.2f): %.2f',
+            $score,
+            $projectionScore,
+            $averageScore
+        );
     } else {
         $score -= 2;
         $reasons[] = 'Keine Projection gefunden (leichter Malus)';
+        $reasons[] = 'Durchschnitt entspricht aktuellem Score (keine Sleeper-Projektion verfügbar)';
     }
+
+    $averageScore = round($averageScore, 2);
 
     return [
         'score' => round($score, 2),
         'reasons' => $reasons,
         'projection_score' => $projectionScore,
         'projection_percentile' => $projectionPercentile,
+        'average_score' => $averageScore,
     ];
 }
 
@@ -467,6 +480,7 @@ function buildRecommendation($players)
             'reasons' => $eval['reasons'],
             'projection_score' => $eval['projection_score'],
             'projection_percentile' => $eval['projection_percentile'],
+            'average_score' => $eval['average_score'],
         ]);
     }, $players);
 
