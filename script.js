@@ -1836,12 +1836,16 @@ function getParticipantPredictions(participant) {
 }
 
 function listParticipants() {
-  // Nur registrierte Benutzer werden für das Scoreboard berücksichtigt.
+  // Registrierte Benutzer aus der API zusammenführen …
   if (cachedUsers.length && (auth.users || []).length < cachedUsers.length) {
     auth.mergeUsersWithTips(cachedUsers, predictionSeason);
   }
   const users = auth.users || [];
-  return sortByName(users);
+
+  // … und lokale Mitspieler ergänzen, damit sie ebenfalls im Scoreboard erscheinen.
+  const coPlayers = readCoPlayers();
+
+  return sortByName([...users, ...coPlayers]);
 }
 
 function hasMeaningfulPredictions(predictions) {
