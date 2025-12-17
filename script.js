@@ -1837,6 +1837,9 @@ function getParticipantPredictions(participant) {
 
 function listParticipants() {
   // Nur registrierte Benutzer werden für das Scoreboard berücksichtigt.
+  if (cachedUsers.length && (auth.users || []).length < cachedUsers.length) {
+    auth.mergeUsersWithTips(cachedUsers, predictionSeason);
+  }
   const users = auth.users || [];
   return sortByName(users);
 }
