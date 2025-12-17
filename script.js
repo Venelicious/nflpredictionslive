@@ -2191,13 +2191,18 @@ function buildOverviewScoreboard(participants, options = {}) {
     STAT_DIVISION_ORDER.forEach(div => {
       const divisionStandings = standingsSnapshot?.divisions?.[conf]?.[div] || [];
       const scoreboard = document.createElement('div');
-      scoreboard.className = 'scoreboard';
-      scoreboard.innerHTML = `
-   <div class="division-banner division-banner--${conf.toLowerCase()}">
-     <span class="banner-conf">${conf}</span>
-     <span class="banner-div">${div}</span>
-   </div>
- `;
+      scoreboard.className = 'scoreboard scoreboard--with-ribbon';
+
+      const ribbon = document.createElement('div');
+      ribbon.className = `division-ribbon division-ribbon--${conf.toLowerCase()}`;
+      ribbon.innerHTML = `
+        <span class="division-ribbon__conf">${conf}</span>
+        <span class="division-ribbon__div">${div}</span>
+      `;
+      scoreboard.appendChild(ribbon);
+
+      const scoreboardContent = document.createElement('div');
+      scoreboardContent.className = 'scoreboard__content';
 
       const divisionTeams = teams.filter(team => team.conference === conf && team.division === div);
 
@@ -2239,7 +2244,7 @@ function buildOverviewScoreboard(participants, options = {}) {
         bonusRow.appendChild(cell);
       });
 
-      scoreboard.appendChild(bonusRow);
+      scoreboardContent.appendChild(bonusRow);
 
       for (let i = 0; i < maxRows; i++) {
         const row = document.createElement('div');
@@ -2289,10 +2294,10 @@ function buildOverviewScoreboard(participants, options = {}) {
           row.appendChild(cell);
         });
 
-        scoreboard.appendChild(row);
+        scoreboardContent.appendChild(row);
       }
 
-
+      scoreboard.appendChild(scoreboardContent);
       grid.appendChild(scoreboard);
     });
   });
