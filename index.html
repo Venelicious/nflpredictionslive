@@ -187,6 +187,25 @@
               <h3>Vorhandene Saisons</h3>
               <div id="adminSeasonList" class="season-admin-list"></div>
             </div>
+
+            <div class="card">
+              <h3>Benutzerrollen</h3>
+              <form id="roleForm" class="stacked-form">
+                <label class="form-field">
+                  Benutzer auswählen
+                  <select id="roleUserSelect"></select>
+                </label>
+                <label class="form-field">
+                  Rolle
+                  <select id="roleValueSelect">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </label>
+                <button type="submit">Rolle speichern</button>
+                <p class="status" id="roleStatus"></p>
+              </form>
+            </div>
           </div>
         </section>
       </div>
