@@ -1962,8 +1962,23 @@ function renderLineupTable(container, players, emptyText) {
 
     const score = document.createElement('div');
     score.className = 'lineup-row__score';
-    const evalScore = typeof player.score === 'number' ? `${player.score.toFixed(1)} pts` : '–';
-    score.textContent = evalScore;
+    const hasAverageScore = typeof player.average_score === 'number';
+    const hasEvalScore = typeof player.score === 'number';
+    const evalScore = hasEvalScore ? `${player.score.toFixed(1)} pts` : '–';
+    const primaryScore = hasAverageScore ? `${player.average_score.toFixed(2)} pts` : evalScore;
+    score.textContent = primaryScore;
+
+    if (hasAverageScore && hasEvalScore) {
+      const average = document.createElement('div');
+      average.className = 'lineup-row__projection';
+      average.textContent = `Ø (Score + Sleeper): ${player.average_score.toFixed(2)} pts`;
+      score.appendChild(average);
+
+      const internal = document.createElement('div');
+      internal.className = 'lineup-row__projection';
+      internal.textContent = `Interner Score: ${evalScore}`;
+      score.appendChild(internal);
+    }
 
     if (typeof player.projection_score === 'number') {
       const projection = document.createElement('div');
