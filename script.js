@@ -12,6 +12,7 @@ let teamLogos = {};
 
 let teams = [];
 let cachedUsers = [];
+let seasonTipParticipants = [];
 
 function buildTeamNameLookup(list) {
   return list.reduce((acc, team) => {
@@ -167,6 +168,10 @@ const apiClient = {
   },
   saveTip(payload) {
     return this.request('/tips', { method: 'POST', body: JSON.stringify(payload) });
+  },
+  listSeasonTips(season) {
+    const query = season ? `?season=${encodeURIComponent(season)}` : '';
+    return this.request(`/tips${query}`);
   },
   listUsers(season) {
     const query = season ? `?season=${encodeURIComponent(season)}` : '';
@@ -1218,6 +1223,28 @@ async function loadMembers() {
   }
 }
 
+async function loadSeasonTips() {
+  try {
+    const { tips } = await apiClient.listSeasonTips(predictionSeason);
+    seasonTipParticipants = (tips || []).map(tip => ({
+      id: tip.user_id,
+      email: tip.user_email || '',
+      name: tip.user_name || tip.user_email || 'Unbekannt',
+      favorite: tip.favorite_team || '',
+      user_group: (tip.user_group || 'user').toLowerCase(),
+      has_tip: true,
+      predictionsBySeason: {
+        [tip.season]: tip.payload || defaultPredictions(),
+      },
+    }));
+  } catch (err) {
+    console.warn('Saison-Tipps konnten nicht geladen werden.', err);
+    seasonTipParticipants = [];
+  }
+
+  renderPredictionsOverview();
+}
+
 async function handleRoleFormSubmit(event) {
   event.preventDefault();
   if (!elements.roleForm || !elements.roleUserSelect || !elements.roleValueSelect) return;
@@ -1464,7 +1491,7 @@ async function handleSeasonCreate(event) {
   }
 }
 
-function handleSeasonChange(event) {
+async function handleSeasonChange(event) {
   predictionSeason = event.target.value;
   localStorage.setItem(PREDICTION_SEASON_KEY, predictionSeason);
 
@@ -1477,6 +1504,7 @@ function handleSeasonChange(event) {
   updateLockInfo();
   loadStats(predictionSeason);
   loadMembers();
+  await loadSeasonTips();
 }
 
 function isLocked() {
@@ -1836,13 +1864,8 @@ function getParticipantPredictions(participant) {
 }
 
 function listParticipants() {
-  // Registrierte Benutzer aus der API zusammenführen …
-  if (cachedUsers.length && (auth.users || []).length < cachedUsers.length) {
-    auth.mergeUsersWithTips(cachedUsers, predictionSeason);
-  }
-  const users = auth.users || [];
-
-  // … und lokale Mitspieler ergänzen, damit sie ebenfalls im Scoreboard erscheinen.
+  const users = seasonTipParticipants.length ? seasonTipParticipants : [];
+  // Lokale Mitspieler ergänzen, damit sie ebenfalls im Scoreboard erscheinen.
   const coPlayers = readCoPlayers();
 
   return sortByName([...users, ...coPlayers]);
@@ -1906,7 +1929,7 @@ function renderPredictionsOverview() {
   const locked = isLocked();
   elements.overviewContent.innerHTML = '';
 
-const participants = getOverviewParticipants();
+  const participants = getOverviewParticipants();
   updateOverviewExportButtons(locked, participants);
   const standingsAvailable = Boolean(standingsSnapshot);
 
@@ -2319,6 +2342,7 @@ async function init() {
   }
   updateOverviewAccess();
   loadStats();
+  await loadSeasonTips();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
