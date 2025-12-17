@@ -518,6 +518,22 @@ function migrateCoPlayerPredictions(player, season = predictionSeason) {
   return predictionsBySeason[season];
 }
 
+function buildParticipantsFromCachedUsers(users = [], season = predictionSeason) {
+  return users
+    .filter(user => user?.has_tip || user?.tip_payload)
+    .map(user => ({
+      id: user.id,
+      email: user.email || '',
+      name: user.name || user.email || 'Unbekannt',
+      favorite: user.favorite_team || '',
+      user_group: (user.user_group || 'user').toLowerCase(),
+      has_tip: Boolean(user.has_tip),
+      predictionsBySeason: {
+        [season]: user.tip_payload || defaultPredictions(),
+      },
+    }));
+}
+
 function normalizePrediction(prediction = {}) {
   return {
     divisionRank: clamp(Number(prediction.divisionRank) || 1, 1, 4),
@@ -1864,11 +1880,13 @@ function getParticipantPredictions(participant) {
 }
 
 function listParticipants() {
-  const users = seasonTipParticipants.length ? seasonTipParticipants : [];
+  const tipParticipants = seasonTipParticipants.length
+    ? seasonTipParticipants
+    : buildParticipantsFromCachedUsers(cachedUsers, predictionSeason);
   // Lokale Mitspieler ergänzen, damit sie ebenfalls im Scoreboard erscheinen.
   const coPlayers = readCoPlayers();
 
-  return sortByName([...users, ...coPlayers]);
+  return sortByName([...tipParticipants, ...coPlayers]);
 }
 
 function hasMeaningfulPredictions(predictions) {
