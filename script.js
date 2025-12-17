@@ -6,14 +6,7 @@ let AVAILABLE_SEASONS = [];
 const PREDICTION_SEASON_KEY = 'nflp_prediction_season';
 const CO_PLAYER_STORAGE_KEY = 'nflp_co_players';
 const ACTIVE_PREDICTOR_KEY = 'nflp_active_predictor';
-function getDefaultSeason() {
-  const today = new Date();
-  // NFL seasons bridge calendar years; before March we default to the previous year
-  const year = today.getMonth() < 2 ? today.getFullYear() - 1 : today.getFullYear();
-  return String(year);
-}
-
-let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || getDefaultSeason();
+let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || '';
 let teamLogos = {};
 
 let teams = [];
@@ -44,14 +37,10 @@ let teamNameLookup = buildTeamNameLookup(teams);
 
 function ensureValidSeasonSelection() {
   const availableValues = AVAILABLE_SEASONS.map(season => season.value);
-  const fallbackSeason = getDefaultSeason();
   if (!availableValues.includes(predictionSeason) && availableValues.length) {
     predictionSeason = availableValues[0];
-  } else if (!predictionSeason) {
-    predictionSeason = availableValues[0] || fallbackSeason;
+    localStorage.setItem(PREDICTION_SEASON_KEY, predictionSeason);
   }
-
-  localStorage.setItem(PREDICTION_SEASON_KEY, predictionSeason || fallbackSeason);
 }
 
 function applyMetadata({ seasons = [], teams: teamList = [] } = {}) {
@@ -1698,8 +1687,7 @@ function renderStats(data) {
 }
 
 async function loadStats(season = predictionSeason) {
-  const resolvedSeason = season || predictionSeason || getDefaultSeason();
-  elements.statsContent.textContent = `Lade Daten für Saison ${resolvedSeason}…`;
+  elements.statsContent.textContent = `Lade Daten für Saison ${season}…`;
   try {
     const nflResponse = await fetch(
       'https://static.www.nfl.com/liveupdate/scorestrip/standings.json',
@@ -1717,7 +1705,7 @@ async function loadStats(season = predictionSeason) {
 
   try {
     const espnResponse = await fetch(
-      `https://site.api.espn.com/apis/v2/sports/football/nfl/standings?season=${resolvedSeason}`
+      `https://site.api.espn.com/apis/v2/sports/football/nfl/standings?season=${season}`
     );
     if (!espnResponse.ok) throw new Error('Fehler beim Abrufen.');
     const data = await espnResponse.json();
