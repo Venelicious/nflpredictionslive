@@ -66,17 +66,6 @@ if (!is_array($input)) {
 // ----------------------------------------
 // Session starten
 // ----------------------------------------
-$isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') === '443';
-$sameSite = $isSecure ? 'None' : 'Lax';
-
-session_set_cookie_params([
-    'lifetime' => 0,
-    'path' => '/',
-    'secure' => $isSecure,
-    'httponly' => true,
-    'samesite' => $sameSite,
-]);
-
 session_start();
 
 // ----------------------------------------
@@ -341,7 +330,6 @@ if ($path === "/auth/register" && $_SERVER["REQUEST_METHOD"] === "POST") {
     $stmt->bind_param("sss", $name, $email, $hash);
     $stmt->execute();
 
-    session_regenerate_id(true);
     $_SESSION["user_id"] = $stmt->insert_id;
 
     $user = fetchUserById($stmt->insert_id, $conn);
@@ -382,7 +370,6 @@ if ($path === "/auth/login" && $_SERVER["REQUEST_METHOD"] === "POST") {
         respond(["error" => "Anmeldung fehlgeschlagen"], 401);
     }
 
-    session_regenerate_id(true);
     $_SESSION["user_id"] = $user["id"];
 
     unset($user["password_hash"]);
