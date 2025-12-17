@@ -3,6 +3,7 @@ const CONFERENCE_ORDER = ['AFC', 'NFC'];
 const DIVISION_ORDER = ['East', 'North', 'South', 'West'];
 const STAT_DIVISION_ORDER = ['North', 'East', 'South', 'West'];
 let AVAILABLE_SEASONS = [];
+let SEASON_METADATA = [];
 const PREDICTION_SEASON_KEY = 'nflp_prediction_season';
 const CO_PLAYER_STORAGE_KEY = 'nflp_co_players';
 const ACTIVE_PREDICTOR_KEY = 'nflp_active_predictor';
@@ -45,12 +46,19 @@ function ensureValidSeasonSelection() {
 
 function applyMetadata({ seasons = [], teams: teamList = [] } = {}) {
   if (Array.isArray(seasons) && seasons.length) {
-    AVAILABLE_SEASONS = seasons.map(item => ({
+    SEASON_METADATA = seasons.map(item => ({
+      season: item.season,
+      label: item.label || `Saison ${item.season}`,
+      lock_date: item.lock_date,
+      completed: Boolean(item.completed),
+    }));
+
+    AVAILABLE_SEASONS = SEASON_METADATA.map(item => ({
       value: item.season,
       label: item.label || `Saison ${item.season}`,
     }));
 
-    DEFAULT_LOCK_DATES = seasons.reduce((acc, season) => {
+    DEFAULT_LOCK_DATES = SEASON_METADATA.reduce((acc, season) => {
       if (season.lock_date) {
         acc[season.season] = season.lock_date;
       }
@@ -142,6 +150,15 @@ const apiClient = {
     return this.request(`/metadata/seasons/${encodeURIComponent(season)}/lock-date`, {
       method: 'PUT',
       body: JSON.stringify({ lock_date: lockDate }),
+    });
+  },
+  createSeason(payload) {
+    return this.request('/metadata/seasons', { method: 'POST', body: JSON.stringify(payload) });
+  },
+  updateSeason(season, payload) {
+    return this.request(`/metadata/seasons/${encodeURIComponent(season)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     });
   },
   listTips() {
@@ -325,6 +342,16 @@ const elements = {
   saveLockDate: document.getElementById('saveLockDate'),
   membersContent: document.getElementById('membersContent'),
   membersStatus: document.getElementById('membersStatus'),
+  adminTab: document.getElementById('adminTab'),
+  adminTabLink: document.getElementById('adminTabLink'),
+  seasonForm: document.getElementById('seasonForm'),
+  seasonValue: document.getElementById('seasonValue'),
+  seasonLabel: document.getElementById('seasonLabel'),
+  seasonLockDate: document.getElementById('seasonLockDate'),
+  seasonCompleted: document.getElementById('seasonCompleted'),
+  seasonFormStatus: document.getElementById('seasonFormStatus'),
+  adminSeasonList: document.getElementById('adminSeasonList'),
+  adminStatus: document.getElementById('adminStatus'),
 };
 
 function clamp(value, min, max) {
@@ -584,6 +611,23 @@ function setStatus(element, message, type = '') {
   element.className = `status ${type}`.trim();
 }
 
+function updateAdminVisibility(user) {
+  const admin = isAdmin(user);
+  const adminLink = elements.adminTabLink;
+  if (adminLink) {
+    adminLink.classList.toggle('hidden', !admin);
+    adminLink.setAttribute('aria-hidden', (!admin).toString());
+  }
+
+  if (elements.adminTab) {
+    elements.adminTab.classList.toggle('hidden', !admin);
+  }
+
+  if (!admin && elements.adminTab?.classList.contains('active')) {
+    switchTab('profileTab');
+  }
+}
+
 function updateAuthUI() {
   const current = auth.currentUser;
   const loggedIn = Boolean(current);
@@ -607,6 +651,7 @@ function updateAuthUI() {
     elements.profileName.value = user?.name || '';
     elements.profileEmail.value = user?.email || '';
     elements.profileFavorite.value = user?.favorite || '';
+    updateAdminVisibility(user);
     if (elements.seasonPicker) {
       elements.seasonPicker.value = predictionSeason;
     }
@@ -619,10 +664,12 @@ function updateAuthUI() {
     refreshCoPlayerSelect();
     loadPredictionsForActive();
     loadMembers();
+    renderAdminSeasons();
   } else {
     showAuth('login');
     applyLockDatePermission(null);
     refreshCoPlayerSelect();
+    updateAdminVisibility(null);
     updateOverviewAccess();
   }
 }
@@ -1153,7 +1200,14 @@ async function handleLockDateSave() {
     return;
   }
 
-  const iso = new Date(rawValue).toISOString();
+  const parsed = new Date(rawValue);
+  if (Number.isNaN(parsed.getTime())) {
+    elements.lockDateStatus.textContent = 'Bitte ein gültiges Datum wählen.';
+    elements.lockDateStatus.className = 'status error';
+    return;
+  }
+
+  const iso = parsed.toISOString();
 
   try {
     await apiClient.updateLockDate(season, iso);
@@ -1162,6 +1216,7 @@ async function handleLockDateSave() {
     saveLockDates(lockDates);
     elements.lockDateStatus.textContent = 'Stichtag gespeichert.';
     elements.lockDateStatus.className = 'status success';
+    await refreshSeasonData();
   } catch (err) {
     elements.lockDateStatus.textContent = err.message || 'Stichtag konnte nicht gespeichert werden.';
     elements.lockDateStatus.className = 'status error';
@@ -1172,6 +1227,142 @@ async function handleLockDateSave() {
     updateLockInfo();
     const current = auth.getUser(auth.currentUser);
     if (current) renderPredictions(migratePredictions(current, predictionSeason));
+  }
+}
+
+async function refreshSeasonData() {
+  await loadMetadata();
+  populateSeasonPicker();
+  populateLockSeasonSelect();
+  updateLockInfo();
+  renderAdminSeasons();
+  updateOverviewAccess();
+}
+
+function renderAdminSeasons() {
+  if (!elements.adminSeasonList) return;
+
+  if (!SEASON_METADATA.length) {
+    elements.adminSeasonList.innerHTML = '<p class="hint">Keine Saisons vorhanden.</p>';
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'admin-season-cards';
+
+  SEASON_METADATA.forEach(season => {
+    const card = document.createElement('article');
+    card.className = 'admin-season-card';
+
+    const header = document.createElement('div');
+    header.className = 'admin-season-card__header';
+
+    const title = document.createElement('div');
+    title.className = 'admin-season-card__title';
+    const name = document.createElement('strong');
+    name.textContent = season.label || `Saison ${season.season}`;
+    const id = document.createElement('span');
+    id.className = 'hint';
+    id.textContent = `ID: ${season.season}`;
+    title.appendChild(name);
+    title.appendChild(id);
+
+    const status = document.createElement('span');
+    status.className = `badge ${season.completed ? 'badge--success' : 'badge--info'}`;
+    status.textContent = season.completed ? 'Abgeschlossen' : 'Aktiv';
+
+    header.appendChild(title);
+    header.appendChild(status);
+
+    const body = document.createElement('div');
+    body.className = 'admin-season-card__body';
+    const lockInfo = document.createElement('div');
+    lockInfo.className = 'admin-season-card__meta';
+    const date = season.lock_date ? new Date(season.lock_date) : null;
+    lockInfo.textContent = date
+      ? `Stichtag: ${date.toLocaleString('de-DE', { dateStyle: 'long', timeStyle: 'short' })}`
+      : 'Kein Stichtag gesetzt';
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-season-card__actions';
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button';
+    toggleBtn.className = 'secondary';
+    toggleBtn.textContent = season.completed ? 'Als aktiv markieren' : 'Als abgeschlossen markieren';
+    toggleBtn.addEventListener('click', () => handleSeasonCompletionToggle(season.season, !season.completed, toggleBtn));
+
+    actions.appendChild(toggleBtn);
+
+    body.appendChild(lockInfo);
+    body.appendChild(actions);
+
+    card.appendChild(header);
+    card.appendChild(body);
+    list.appendChild(card);
+  });
+
+  elements.adminSeasonList.innerHTML = '';
+  elements.adminSeasonList.appendChild(list);
+}
+
+async function handleSeasonCompletionToggle(season, completed, button) {
+  const user = auth.getUser(auth.currentUser);
+  if (!isAdmin(user)) {
+    setStatus(elements.adminStatus, 'Nur Admins können den Saisonstatus ändern.', 'error');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  setStatus(elements.adminStatus, completed ? 'Saison wird abgeschlossen …' : 'Saison wird geöffnet …', '');
+
+  try {
+    await apiClient.updateSeason(season, { completed });
+    setStatus(elements.adminStatus, 'Saisonstatus aktualisiert.', 'success');
+    await refreshSeasonData();
+  } catch (err) {
+    setStatus(elements.adminStatus, err.message || 'Saisonstatus konnte nicht geändert werden.', 'error');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function handleSeasonCreate(event) {
+  event.preventDefault();
+  const user = auth.getUser(auth.currentUser);
+  if (!isAdmin(user)) {
+    setStatus(elements.seasonFormStatus, 'Nur Admins können neue Saisons anlegen.', 'error');
+    return;
+  }
+
+  const season = elements.seasonValue?.value.trim();
+  const label = elements.seasonLabel?.value.trim();
+  const lockDateRaw = elements.seasonLockDate?.value || '';
+  const completed = elements.seasonCompleted?.checked || false;
+
+  if (!season || !label) {
+    setStatus(elements.seasonFormStatus, 'Saison und Anzeigename sind erforderlich.', 'error');
+    return;
+  }
+
+  const payload = { season, label, completed };
+  if (lockDateRaw) {
+    const parsed = new Date(lockDateRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      setStatus(elements.seasonFormStatus, 'Bitte gib ein gültiges Datum ein.', 'error');
+      return;
+    }
+    payload.lock_date = parsed.toISOString();
+  }
+
+  setStatus(elements.seasonFormStatus, 'Saison wird gespeichert …', '');
+
+  try {
+    await apiClient.createSeason(payload);
+    setStatus(elements.seasonFormStatus, 'Saison gespeichert.', 'success');
+    elements.seasonForm?.reset();
+    await refreshSeasonData();
+  } catch (err) {
+    setStatus(elements.seasonFormStatus, err.message || 'Saison konnte nicht gespeichert werden.', 'error');
   }
 }
 
@@ -2000,6 +2191,7 @@ function setupEvents() {
   elements.seasonPicker?.addEventListener('change', handleSeasonChange);
   elements.exportCsv?.addEventListener('click', handleOverviewExport);
   elements.exportPdf?.addEventListener('click', handleOverviewPdfExport);
+  elements.seasonForm?.addEventListener('submit', handleSeasonCreate);
 }
 
 async function init() {
@@ -2007,6 +2199,7 @@ async function init() {
   populateTeamSelect();
   populateSeasonPicker();
   populateLockSeasonSelect();
+  renderAdminSeasons();
   showAuth('login');
   setupEvents();
   await auth.init();
