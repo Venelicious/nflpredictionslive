@@ -1,0 +1,2 @@
+nflreadpy==0.3.3
+pandas>=2.2.0
