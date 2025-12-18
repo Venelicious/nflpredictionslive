@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Mapping, Tuple
 
 import math
+import inspect
 
 DEPENDENCY_HINT = "Install via `pip install -r python_service/requirements.txt`."
 NFLREADPY_DOCS = "\n".join(
@@ -61,23 +62,51 @@ def load_ff_playerids() -> pl.DataFrame:
 def load_ff_rankings(season: int, week: int | None = None) -> pl.DataFrame:
     """Load weekly fantasy rankings (projections) for a given season/week."""
 
-    return nfl.load_ff_rankings(
-        season=season,
-        week=week,
-        season_type=DEFAULT_SEASON_TYPE,
-        output_format="polars",
-    )
+    signature = inspect.signature(nfl.load_ff_rankings)
+    params = signature.parameters
+
+    kwargs: dict[str, Any] = {"output_format": "polars"}
+
+    if "season_type" in params:
+        kwargs["season_type"] = DEFAULT_SEASON_TYPE
+
+    if "season" in params:
+        kwargs["season"] = season
+    elif "seasons" in params:
+        kwargs["seasons"] = [season]
+
+    if "week" in params:
+        kwargs["week"] = week
+    elif "weeks" in params:
+        kwargs["weeks"] = [week] if week is not None else None
+
+    return nfl.load_ff_rankings(**kwargs)
 
 
 def load_ff_opportunity(season: int, weeks: Iterable[int] | None = None) -> pl.DataFrame:
     """Load opportunity data (snaps, routes, targets, carries) for weeks."""
 
-    return nfl.load_ff_opportunity(
-        season=season,
-        weeks=weeks,
-        season_type=DEFAULT_SEASON_TYPE,
-        output_format="polars",
-    )
+    weeks_list = list(weeks) if weeks is not None else None
+
+    signature = inspect.signature(nfl.load_ff_opportunity)
+    params = signature.parameters
+
+    kwargs: dict[str, Any] = {"output_format": "polars"}
+
+    if "season_type" in params:
+        kwargs["season_type"] = DEFAULT_SEASON_TYPE
+
+    if "season" in params:
+        kwargs["season"] = season
+    elif "seasons" in params:
+        kwargs["seasons"] = [season]
+
+    if "week" in params:
+        kwargs["week"] = weeks_list[0] if weeks_list else None
+    elif "weeks" in params:
+        kwargs["weeks"] = weeks_list
+
+    return nfl.load_ff_opportunity(**kwargs)
 
 
 def _normalize_id(value: Any) -> str | None:
