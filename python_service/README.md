@@ -9,7 +9,7 @@ die für Euch relevanten nflverse-Endpunkte genutzt werden:
 
 ## Inhalte
 
-- `requirements.txt` – fixiert `nflreadpy==0.3.3` und `polars`.
+- `requirements.txt` – fixiert `nflreadpy==0.1.5` und `polars`.
 - `scoring.py` – Abbild der PHP-Scoring-Logik (`calculateProjectionFantasyPoints`).
 - `data_loader.py` – Helper, um die genannten nflverse-Funktionen aufzurufen und die Scoring-Funktion auf die geladenen Rankings
  anzuwenden. Enthält auch ein Mapping auf `sleeper_id`, damit das bestehende PHP-Frontend die Projektionen direkt den Roster-IDs
