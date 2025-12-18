@@ -52,6 +52,13 @@ die für Euch relevanten nflverse-Endpunkte genutzt werden:
    python python_service/export_lineup.py --season 2024 --week 1 > lineup.json
    ```
 
+   Alternativ könnt ihr das Modul direkt ausführen, damit automatisch das aktive
+   Python-Environment genutzt wird:
+
+   ```bash
+   python -m python_service.export_lineup --season 2024 --week 1 > lineup.json
+   ```
+
 ## Nutzung im bestehenden Frontend
 
 - Die Funktion `export_lineup_json` liefert eine JSON-ähnliche Liste mit `player_id`, `pos`, `fantasy_points`, `team`, `player`,
