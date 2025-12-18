@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Mapping, Tuple
 
-import importlib.util
 import math
 
 DEPENDENCY_HINT = "Install via `pip install -r python_service/requirements.txt`."
@@ -28,15 +27,22 @@ def _raise_missing_dependency(module: str, extra: str | None = None) -> None:
         message = f"{message}\n{extra}"
     raise ImportError(message)
 
+try:
+    import polars as pl
+except Exception as e:
+    raise ImportError(
+        f"polars ist installiert, aber der Import ist fehlgeschlagen: {e}"
+    )
 
-if importlib.util.find_spec("polars") is None:
-    _raise_missing_dependency("polars")
-
-if importlib.util.find_spec("nflreadpy") is None:
-    _raise_missing_dependency("nflreadpy", extra=NFLREADPY_DOCS)
+try:
+    import nflreadpy as nfl
+except Exception as e:
+    raise ImportError(
+        f"nflreadpy ist installiert, aber der Import ist fehlgeschlagen:\n{e}\n{NFLREADPY_DOCS}"
+    )
 
 import polars as pl
-from nflreadpy import nflread as nfl
+import nflreadpy as nfl
 
 
 DEFAULT_SEASON_TYPE = "regular"

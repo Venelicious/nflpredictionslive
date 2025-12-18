@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/www/bin/python
 """CLI helper to export nflverse lineup projections as JSON."""
 from __future__ import annotations
 
