@@ -7,7 +7,6 @@ let SEASON_METADATA = [];
 const PREDICTION_SEASON_KEY = 'nflp_prediction_season';
 const CO_PLAYER_STORAGE_KEY = 'nflp_co_players';
 const ACTIVE_PREDICTOR_KEY = 'nflp_active_predictor';
-const LINEUP_SOURCE_KEY = 'nflp_lineup_source';
 let predictionSeason = localStorage.getItem(PREDICTION_SEASON_KEY) || '';
 let teamLogos = {};
 
@@ -184,20 +183,6 @@ const apiClient = {
       body: JSON.stringify({ role }),
     });
   },
-  saveLineupSource(payload) {
-    return this.request('/lineup/source', { method: 'POST', body: JSON.stringify(payload) });
-  },
-  getLineupSource() {
-    return this.request('/lineup/source');
-  },
-  getLineupRoster(roster) {
-    const query = roster ? `?roster=${encodeURIComponent(roster)}` : '';
-    return this.request(`/lineup/roster${query}`);
-  },
-  getLineupRecommendations(roster) {
-    const query = roster ? `?roster=${encodeURIComponent(roster)}` : '';
-    return this.request(`/lineup/recommendations${query}`);
-  },
 };
 
 const auth = {
@@ -369,15 +354,6 @@ const elements = {
   deleteCoPlayer: document.getElementById('deleteCoPlayer'),
   statsContent: document.getElementById('statsContent'),
   refreshStats: document.getElementById('refreshStats'),
-  lineupForm: document.getElementById('lineupForm'),
-  lineupRosterInput: document.getElementById('lineupRosterInput'),
-  lineupRemember: document.getElementById('lineupRemember'),
-  lineupLoadOnce: document.getElementById('lineupLoadOnce'),
-  lineupStatus: document.getElementById('lineupStatus'),
-  lineupSavedInfo: document.getElementById('lineupSavedInfo'),
-  lineupStarters: document.getElementById('lineupStarters'),
-  lineupBench: document.getElementById('lineupBench'),
-  lineupRefresh: document.getElementById('lineupRefresh'),
   overviewContent: document.getElementById('overviewContent'),
   overviewStatus: document.getElementById('overviewStatus'),
   exportCsv: document.getElementById('exportCsv'),
@@ -1907,195 +1883,6 @@ async function loadStats(season = predictionSeason) {
 }
 
 
-function readStoredLineupSource() {
-  try {
-    return localStorage.getItem(LINEUP_SOURCE_KEY) || '';
-  } catch (err) {
-    return '';
-  }
-}
-
-function persistLineupSource(value) {
-  try {
-    localStorage.setItem(LINEUP_SOURCE_KEY, value || '');
-  } catch (err) {
-    // ignore
-  }
-}
-
-function setLineupStatus(message, type = 'info') {
-  if (!elements.lineupStatus) return;
-  elements.lineupStatus.textContent = message;
-  elements.lineupStatus.dataset.type = type;
-}
-
-function renderLineupTable(container, players, emptyText) {
-  if (!container) return;
-  container.innerHTML = '';
-
-  if (!players || !players.length) {
-    container.textContent = emptyText;
-    return;
-  }
-
-  const body = document.createElement('div');
-  body.className = 'lineup-table__body';
-
-  players.forEach(player => {
-    const row = document.createElement('div');
-    row.className = 'lineup-row';
-
-    const slot = document.createElement('div');
-    slot.className = 'lineup-row__slot';
-    slot.textContent = player.slot || player.position || '–';
-
-    const name = document.createElement('div');
-    name.className = 'lineup-row__name';
-    const nameLabel = document.createElement('div');
-    nameLabel.className = 'lineup-row__primary';
-    nameLabel.textContent = player.name || 'Unbekannt';
-    const meta = document.createElement('div');
-    meta.className = 'lineup-row__meta';
-    meta.textContent = [player.team, player.position].filter(Boolean).join(' • ');
-    name.appendChild(nameLabel);
-    name.appendChild(meta);
-
-    const score = document.createElement('div');
-    score.className = 'lineup-row__score';
-    const hasAverageScore = typeof player.average_score === 'number';
-    const hasEvalScore = typeof player.score === 'number';
-    const evalScore = hasEvalScore ? `${player.score.toFixed(1)} pts` : '–';
-    const primaryScore = hasAverageScore ? `${player.average_score.toFixed(2)} pts` : evalScore;
-    score.textContent = primaryScore;
-
-    if (hasAverageScore && hasEvalScore) {
-      const average = document.createElement('div');
-      average.className = 'lineup-row__projection';
-      average.textContent = `Ø (Score + Sleeper): ${player.average_score.toFixed(2)} pts`;
-      score.appendChild(average);
-
-      const internal = document.createElement('div');
-      internal.className = 'lineup-row__projection';
-      internal.textContent = `Interner Score: ${evalScore}`;
-      score.appendChild(internal);
-    }
-
-    if (typeof player.projection_score === 'number') {
-      const projection = document.createElement('div');
-      projection.className = 'lineup-row__projection';
-      const percentile =
-        typeof player.projection_percentile === 'number'
-          ? ` (${player.projection_percentile.toFixed(0)}. Perzentil)`
-          : '';
-      projection.textContent = `Sleeper-Projektion: ${player.projection_score.toFixed(2)} pts${percentile}`;
-      score.appendChild(projection);
-    }
-
-    const reasons = document.createElement('ul');
-    reasons.className = 'lineup-row__reasons';
-    (player.reasons || []).forEach(reason => {
-      const li = document.createElement('li');
-      li.textContent = reason;
-      reasons.appendChild(li);
-    });
-
-    row.appendChild(slot);
-    row.appendChild(name);
-    row.appendChild(score);
-    row.appendChild(reasons);
-    body.appendChild(row);
-  });
-
-  container.appendChild(body);
-}
-
-async function syncLineupSource() {
-  if (!elements.lineupRosterInput) return;
-  let stored = null;
-  const cached = readStoredLineupSource();
-  if (cached) {
-    elements.lineupRosterInput.value = cached;
-  }
-
-  try {
-    stored = await apiClient.getLineupSource();
-    if (stored.roster_id) {
-      const info = stored.league_id
-        ? `Gespeichertes Roster: ${stored.roster_id} (Liga ${stored.league_id})`
-        : `Gespeichertes Roster: ${stored.roster_id}`;
-      elements.lineupSavedInfo.textContent = info;
-    } else {
-      elements.lineupSavedInfo.textContent = 'Noch kein Roster gespeichert.';
-    }
-  } catch (err) {
-    elements.lineupSavedInfo.textContent = 'Roster kann erst nach Anmeldung gespeichert werden.';
-  }
-
-  return stored;
-}
-
-function renderLineupResults(data) {
-  if (!data) return;
-  renderLineupTable(elements.lineupStarters, data.starters, 'Keine Empfehlung vorhanden.');
-  renderLineupTable(elements.lineupBench, data.bench, 'Keine Ersatzbank gefunden.');
-}
-
-async function loadLineupRecommendations(rosterOverride = '') {
-  if (!elements.lineupRosterInput) return;
-  setLineupStatus('Lade Lineup-Empfehlungen…');
-  const payload = rosterOverride || elements.lineupRosterInput.value.trim();
-
-  try {
-    const data = await apiClient.getLineupRecommendations(payload || undefined);
-    renderLineupResults(data);
-    if (data?.projection_warning) {
-      setLineupStatus(data.projection_warning, 'error');
-    } else {
-      setLineupStatus('Empfehlungen aktualisiert.', 'success');
-    }
-    if (payload) {
-      persistLineupSource(payload);
-    }
-  } catch (err) {
-    setLineupStatus(err.message || 'Lineup konnte nicht geladen werden.', 'error');
-  }
-}
-
-async function handleLineupSubmit(event) {
-  event.preventDefault();
-  if (!elements.lineupRosterInput) return;
-  const value = elements.lineupRosterInput.value.trim();
-  if (!value) {
-    setLineupStatus('Bitte Roster-URL oder ID eintragen.', 'error');
-    return;
-  }
-
-  setLineupStatus('Speichere Roster und lade Empfehlungen…');
-  const remember = elements.lineupRemember ? Boolean(elements.lineupRemember.checked) : true;
-  try {
-    await apiClient.saveLineupSource({ roster: value, remember });
-    persistLineupSource(value);
-    await loadLineupRecommendations(value);
-  } catch (err) {
-    setLineupStatus(err.message || 'Roster konnte nicht gespeichert werden.', 'error');
-  }
-}
-
-async function handleLineupLoadOnce() {
-  if (!elements.lineupRosterInput) return;
-  const value = elements.lineupRosterInput.value.trim();
-  if (!value) {
-    await loadLineupRecommendations('');
-    return;
-  }
-
-  await loadLineupRecommendations(value);
-}
-
-async function refreshLineup() {
-  await loadLineupRecommendations('');
-}
-
 
 function getParticipantPredictions(participant) {
   if (participant?.email) {
@@ -2579,9 +2366,6 @@ function setupEvents() {
     })
   );
   elements.refreshStats.addEventListener('click', loadStats);
-  elements.lineupForm?.addEventListener('submit', handleLineupSubmit);
-  elements.lineupLoadOnce?.addEventListener('click', handleLineupLoadOnce);
-  elements.lineupRefresh?.addEventListener('click', refreshLineup);
   elements.seasonPicker?.addEventListener('change', handleSeasonChange);
   elements.exportCsv?.addEventListener('click', handleOverviewExport);
   elements.exportPdf?.addEventListener('click', handleOverviewPdfExport);
@@ -2598,7 +2382,6 @@ async function init() {
   renderAdminSeasons();
   showAuth('login');
   setupEvents();
-  const storedLineup = await syncLineupSource();
   await auth.init();
   if (auth.currentUser) {
     updateAuthUI();
@@ -2606,9 +2389,6 @@ async function init() {
   updateOverviewAccess();
   loadStats();
   await loadSeasonTips();
-  if (storedLineup?.roster_id || readStoredLineupSource()) {
-    refreshLineup();
-  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

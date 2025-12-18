@@ -43,7 +43,6 @@
         <a class="tab-link active" data-tab="profileTab" role="tab" href="#">Me</a>
         <a class="tab-link" data-tab="predictionsTab" role="tab" href="#">Prediction</a>
         <a class="tab-link" data-tab="statsTab" role="tab" href="#">NFL Live</a>
-        <a class="tab-link" data-tab="lineupTab" role="tab" href="#">Lineup</a>
         <a class="tab-link" data-tab="overviewTab" role="tab" href="#">Scoreboard</a>
         <a class="tab-link" data-tab="membersTab" role="tab" href="#">User</a>
         <a class="tab-link hidden" data-tab="adminTab" id="adminTabLink" role="tab" href="#">Admin</a>
@@ -107,50 +106,6 @@
             </div>
           </div>
           <div id="statsContent" class="card">Starte eine Aktualisierung…</div>
-        </section>
-
-        <section id="lineupTab" class="tab-pane">
-          <div class="pane-header">
-            <div>
-              <h2>Lineup Assistant</h2>
-              <p class="hint">Sleeper-Roster verknüpfen oder per URL laden und eine Startaufstellung erhalten.</p>
-            </div>
-            <div class="pane-actions">
-              <button id="lineupRefresh" class="secondary">Neu laden</button>
-            </div>
-          </div>
-
-          <div class="card lineup-card">
-            <form id="lineupForm" class="lineup-form">
-              <label class="form-field">
-                Roster-URL oder ID
-                <input type="text" id="lineupRosterInput" placeholder="z. B. https://sleeper.app/roster/1268326913135357952/10" />
-              </label>
-              <div class="lineup-form__actions">
-                <label class="form-checkbox">
-                  <input type="checkbox" id="lineupRemember" checked />
-                  <span>Für mein Konto/Sitzung merken</span>
-                </label>
-                <div class="lineup-form__buttons">
-                  <button type="submit">Speichern &amp; Laden</button>
-                  <button type="button" id="lineupLoadOnce" class="secondary">Nur laden</button>
-                </div>
-              </div>
-              <p id="lineupStatus" class="status"></p>
-              <p id="lineupSavedInfo" class="hint"></p>
-            </form>
-          </div>
-
-          <div id="lineupResults" class="lineup-grid">
-            <div class="card lineup-card">
-              <div class="lineup-card__title">Empfohlene Starter</div>
-              <div id="lineupStarters" class="lineup-table">Keine Daten geladen.</div>
-            </div>
-            <div class="card lineup-card">
-              <div class="lineup-card__title">Bank</div>
-              <div id="lineupBench" class="lineup-table">Keine Daten geladen.</div>
-            </div>
-          </div>
         </section>
 
         <section id="overviewTab" class="tab-pane">
