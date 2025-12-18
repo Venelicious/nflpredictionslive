@@ -29,6 +29,8 @@ def _raise_missing_dependency(module: str, extra: str | None = None) -> None:
 
 try:
     import polars as pl
+except ModuleNotFoundError:
+    _raise_missing_dependency("polars")
 except Exception as e:
     raise ImportError(
         f"polars ist installiert, aber der Import ist fehlgeschlagen: {e}"
@@ -36,6 +38,8 @@ except Exception as e:
 
 try:
     import nflreadpy as nfl
+except ModuleNotFoundError:
+    _raise_missing_dependency("nflreadpy", extra=NFLREADPY_DOCS)
 except Exception as e:
     raise ImportError(
         f"nflreadpy ist installiert, aber der Import ist fehlgeschlagen:\n{e}\n{NFLREADPY_DOCS}"
