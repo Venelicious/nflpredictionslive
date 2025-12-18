@@ -59,6 +59,16 @@ die für Euch relevanten nflverse-Endpunkte genutzt werden:
    python -m python_service.export_lineup --season 2024 --week 1 > lineup.json
    ```
 
+   Falls ihr einen ImportError zu `polars` oder `nflreadpy` seht, vergewissert euch,
+   dass das Virtualenv aktiv ist und die Requirements installiert wurden:
+
+   ```bash
+   source /home/www/home/www/bin/activate
+   python -m pip install -r python_service/requirements.txt
+   ```
+
+   Danach lässt sich das CLI erneut ausführen.
+
 ## Nutzung im bestehenden Frontend
 
 - Die Funktion `export_lineup_json` liefert eine JSON-ähnliche Liste mit `player_id`, `pos`, `fantasy_points`, `team`, `player`,

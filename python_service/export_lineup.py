@@ -14,7 +14,10 @@ PROJECT_ROOT = ROOT.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from python_service.data_loader import export_lineup_json  # noqa: E402
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from python_service.data_loader import export_lineup_json
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +29,23 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    try:
+        from python_service.data_loader import export_lineup_json  # noqa: WPS433, E402
+    except ImportError as exc:  # pragma: no cover - defensive guard for missing deps
+        sys.stderr.write(
+            "\n".join(
+                [
+                    "Fehlende Python-Abhängigkeit: " + str(exc),
+                    "Aktiviere Dein Virtualenv und installiere die Requirements:",
+                    "  source /home/www/home/www/bin/activate",
+                    "  python -m pip install -r python_service/requirements.txt",
+                    "Weitere Hinweise in python_service/README.md",
+                ]
+            )
+            + "\n",
+        )
+        sys.exit(1)
+
     records = export_lineup_json(season=args.season, week=args.week)
     json.dump(records, sys.stdout, ensure_ascii=False)
 
